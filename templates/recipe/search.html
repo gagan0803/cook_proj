@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}CookBookIt - Recipe Search{% endblock %}
+
+{% block content %}
+<div class="slide-in-up">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Recipe Search</h1>
+        <a href="{{ url_for('recipe.index') }}" class="btn btn-outline">&larr; Back to Recipes</a>
+    </div>
+    
+    <div class="card mb-4">
+        <div class="card-body">
+            <form action="{{ url_for('recipe.search') }}" method="GET" class="d-flex gap-2">
+                <input type="text" name="term" value="{{ search_term }}" class="form-control" placeholder="Search for recipes...">
+                <button type="submit" class="btn btn-primary">Search</button>
+                <button type="button" id="filter-toggle" class="btn btn-outline">Show Filters</button>
+            </form>
+            
+            <div id="filter-form" class="mt-3 d-none">
+                <h3 class="mb-2">Dietary Preferences</h3>
+                <div class="d-flex flex-wrap gap-3">
+                    <div>
+                        <input type="checkbox" id="vegetarian" name="vegetarian" {% if request.args.get('vegetarian') == 'on' %}checked{% endif %}>
+                        <label for="vegetarian">Vegetarian</label>
+                    </div>
+                    <div>
+                        <input type="checkbox" id="vegan" name="vegan" {% if request.args.get('vegan') == 'on' %}checked{% endif %}>
+                        <label for="vegan">Vegan</label>
+                    </div>
+                    <div>
+                        <input type="checkbox" id="gluten_free" name="gluten_free" {% if request.args.get('gluten_free') == 'on' %}checked{% endif %}>
+                        <label for="gluten_free">Gluten Free</label>
+                    </div>
+                    <div>
+                        <input type="checkbox" id="dairy_free" name="dairy_free" {% if request.args.get('dairy_free') == 'on' %}checked{% endif %}>
+                        <label for="dairy_free">Dairy Free</label>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm mt-2">Apply Filters</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="recipe-results" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem;">
+        {% if recipes|length > 0 %}
+            {% for recipe in recipes %}
+                <div class="recipe-card card">
+                    <img src="{{ recipe.image_url }}" alt="{{ recipe.name }}" class="card-img">
+                    <div class="card-body">
+                        <h3 class="card-title">{{ recipe.name }}</h3>
+                        <p class="card-text">{{ recipe.description }}</p>
+                        <div class="recipe-meta">
+                            <span>{{ recipe.prep_time + recipe.cook_time }} mins</span>
+                            <span>{{ recipe.difficulty }}</span>
+                        </div>
+                        <div class="recipe-tags">
+                            {% for tag in recipe.tags[:3] %}
+                                <span class="recipe-tag">{{ tag }}</span>
+                            {% endfor %}
+                            
+                            {% for key, value in recipe.dietary_info.items() %}
+                                {% if value and loop.index <= 2 %}
+                                    <span class="recipe-tag badge-info">{{ key|replace('_', ' ')|title }}</span>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                        <a href="{{ url_for('recipe.detail', recipe_id=recipe._id) }}" class="btn btn-primary mt-2">View Recipe</a>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="text-center" style="grid-column: 1 / -1;">
+                <h3>No recipes found</h3>
+                <p>Try a different search term or adjust your filters.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/recipe.js') }}"></script>
+{% endblock %}

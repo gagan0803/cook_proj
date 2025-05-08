@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}CookBookIt - Meal Plan{% endblock %}
+
+{% block content %}
+<div class="slide-in-up">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Your Meal Plan</h1>
+        <a href="{{ url_for('meal_plan.grocery_list', plan_id=meal_plan.id) }}" class="btn btn-primary">Generate Grocery List</a>
+    </div>
+    
+    <div class="card mb-4">
+        <div class="card-body">
+            <h2>Week of {{ meal_plan.week_start_date.strftime('%B %d, %Y') }}</h2>
+            
+            <div class="mt-4">
+                {% for day_id, day_name in days.items() %}
+                    <div class="mb-4">
+                        <h3>{{ day_name }}</h3>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
+                            {% set day_items = meal_plan.items|selectattr('day_of_week', 'equalto', day_id|int)|list %}
+                            
+                            {% if day_items %}
+                                {% for item in day_items %}
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between">
+                                                <h4>{{ meal_types[item.meal_type] }}</h4>
+                                                <form method="POST" action="{{ url_for('meal_plan.remove', item_id=item.id) }}" style="display: inline;">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Remove this recipe from your meal plan?')">×</button>
+                                                </form>
+                                            </div>
+                                            
+                                            <div class="d-flex mt-2 gap-3">
+                                                <img src="{{ item.recipe.image_url }}" alt="{{ item.recipe.name }}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 4px;">
+                                                <div>
+                                                    <h5>{{ item.recipe.name }}</h5>
+                                                    <p class="mb-2 small">{{ item.recipe.prep_time + item.recipe.cook_time }} mins | {{ item.recipe.difficulty }}</p>
+                                                    <a href="{{ url_for('recipe.detail', recipe_id=item.recipe._id) }}" class="btn btn-sm btn-outline">View Recipe</a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="text-center p-4" style="grid-column: 1 / -1; background-color: rgba(255, 255, 255, 0.05); border-radius: 8px;">
+                                    <p>No meals planned for {{ day_name }}</p>
+                                    <small>Visit the recipes page to add meals</small>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="text-center">
+        <a href="{{ url_for('recipe.index') }}" class="btn btn-primary">Find Recipes to Add</a>
+    </div>
+</div>
+{% endblock %}

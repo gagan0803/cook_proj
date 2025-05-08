@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{% block title %}CookBookIt{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    {% block styles %}{% endblock %}
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <nav class="nav">
+                <a href="{{ url_for('index') }}" class="nav-logo">Cook<span>Book</span>It</a>
+                
+                <button id="mobile-menu-toggle" class="mobile-menu-toggle">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+                
+                <ul id="mobile-menu" class="nav-menu">
+                    <li><a href="{{ url_for('index') }}" class="nav-link {% if request.path == url_for('index') %}active{% endif %}">Home</a></li>
+                    {% if current_user.is_authenticated %}
+                        <li><a href="{{ url_for('recipe.index') }}" class="nav-link {% if request.path.startswith('/recipe') %}active{% endif %}">Recipes</a></li>
+                        <li><a href="{{ url_for('inventory.index') }}" class="nav-link {% if request.path.startswith('/inventory') %}active{% endif %}">Inventory</a></li>
+                        <li><a href="{{ url_for('meal_plan.index') }}" class="nav-link {% if request.path.startswith('/meal-plan') %}active{% endif %}">Meal Plans</a></li>
+                        <li><a href="{{ url_for('auth.profile') }}" class="nav-link {% if request.path == url_for('auth.profile') %}active{% endif %}">Profile</a></li>
+                        <li><a href="{{ url_for('auth.logout') }}" class="nav-link">Logout</a></li>
+                    {% else %}
+                        <li><a href="{{ url_for('auth.login') }}" class="nav-link {% if request.path == url_for('auth.login') %}active{% endif %}">Login</a></li>
+                        <li><a href="{{ url_for('auth.register') }}" class="nav-link {% if request.path == url_for('auth.register') %}active{% endif %}">Register</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    </header>
+    
+    <main class="container mt-4">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        {% block content %}{% endblock %}
+    </main>
+    
+    <footer class="mt-5 mb-4">
+        <div class="container">
+            <div class="text-center">
+                <p>&copy; 2025 CookBookIt. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+    
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

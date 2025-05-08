@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block title %}CookBookIt - {{ recipe.name }}{% endblock %}
+
+{% block content %}
+<div class="slide-in-up">
+    <div class="mb-4">
+        <a href="{{ url_for('recipe.index') }}" class="btn btn-outline btn-sm">&larr; Back to Recipes</a>
+    </div>
+    
+    <div class="recipe-detail">
+        <div>
+            <img src="{{ recipe.image_url }}" alt="{{ recipe.name }}" class="recipe-image">
+            
+            <div class="mt-4">
+                <h2>Ingredients</h2>
+                <ul class="ingredients-list">
+                    {% for ingredient in recipe.ingredients %}
+                        <li class="ingredient-item">
+                            <span>{{ ingredient.name|title }}</span>
+                            <span>{{ ingredient.amount }} {{ ingredient.unit }}</span>
+                        </li>
+                    {% endfor %}
+                </ul>
+                
+                {% if not has_all_ingredients %}
+                    <div class="alert alert-warning mt-3">
+                        <h4>Missing Ingredients</h4>
+                        <ul>
+                            {% for ingredient in missing_ingredients %}
+                                <li>{{ ingredient.name|title }}: {{ ingredient.amount }} {{ ingredient.unit }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div>
+            <h1>{{ recipe.name }}</h1>
+            <p class="mb-4">{{ recipe.description }}</p>
+            
+            <div class="recipe-meta-detail mb-4">
+                <div class="recipe-meta-item">
+                    <span class="recipe-meta-label">Prep Time</span>
+                    <span class="recipe-meta-value">{{ recipe.prep_time }} mins</span>
+                </div>
+                <div class="recipe-meta-item">
+                    <span class="recipe-meta-label">Cook Time</span>
+                    <span class="recipe-meta-value">{{ recipe.cook_time }} mins</span>
+                </div>
+                <div class="recipe-meta-item">
+                    <span class="recipe-meta-label">Servings</span>
+                    <span class="recipe-meta-value">{{ recipe.servings }}</span>
+                </div>
+                <div class="recipe-meta-item">
+                    <span class="recipe-meta-label">Difficulty</span>
+                    <span class="recipe-meta-value">{{ recipe.difficulty }}</span>
+                </div>
+            </div>
+            
+            <div class="recipe-tags mb-4">
+                {% for tag in recipe.tags %}
+                    <span class="recipe-tag">{{ tag }}</span>
+                {% endfor %}
+                
+                {% for key, value in recipe.dietary_info.items() %}
+                    {% if value %}
+                        <span class="recipe-tag badge-info">{{ key|replace('_', ' ')|title }}</span>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            
+            <h2>Instructions</h2>
+            <ol class="instructions-list">
+                {% for instruction in recipe.instructions %}
+                    <li class="instruction-item">{{ instruction }}</li>
+                {% endfor %}
+            </ol>
+            
+            <h2 class="mt-4">Nutrition Information</h2>
+            <div class="recipe-nutrition">
+                <div class="nutrition-item">
+                    <div class="nutrition-value">{{ recipe.nutrition.calories }}</div>
+                    <div class="nutrition-label">Calories</div>
+                </div>
+                <div class="nutrition-item">
+                    <div class="nutrition-value">{{ recipe.nutrition.protein }}g</div>
+                    <div class="nutrition-label">Protein</div>
+                </div>
+                <div class="nutrition-item">
+                    <div class="nutrition-value">{{ recipe.nutrition.carbs }}g</div>
+                    <div class="nutrition-label">Carbs</div>
+                </div>
+                <div class="nutrition-item">
+                    <div class="nutrition-value">{{ recipe.nutrition.fat }}g</div>
+                    <div class="nutrition-label">Fat</div>
+                </div>
+            </div>
+            
+            <div class="d-flex justify-content-between mt-4">
+                <a href="{{ url_for('meal_plan.index') }}" class="btn btn-outline">Add to Meal Plan</a>
+                <button id="complete-recipe-btn" class="btn btn-primary">Mark as Completed</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Complete Recipe Modal -->
+    <div id="complete-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.3s;">
+        <div class="card" style="width: 100%; max-width: 500px; transform: translateY(20px); transition: transform 0.3s;">
+            <div class="card-body">
+                <h2>Mark Recipe as Completed</h2>
+                <p>This will update your inventory by removing the ingredients used in this recipe.</p>
+                
+                <form method="POST" action="{{ url_for('recipe.complete', recipe_id=recipe._id) }}">
+                    {{ form.hidden_tag() }}
+                    <div class="form-group">
+                        <label for="servings" class="form-label">Number of Servings Made</label>
+                        {{ form.servings(class="form-control", min="1", max="10") }}
+                    </div>
+                    
+                    <div class="d-flex justify-content-between mt-4">
+                        <button type="button" id="close-modal" class="btn btn-outline">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Complete Recipe</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const completeRecipeBtn = document.getElementById('complete-recipe-btn');
+        const completeModal = document.getElementById('complete-modal');
+        const closeModalBtn = document.getElementById('close-modal');
+        
+        if (completeRecipeBtn && completeModal) {
+            completeRecipeBtn.addEventListener('click', function() {
+                completeModal.style.display = 'flex';
+                setTimeout(() => {
+                    completeModal.style.opacity = '1';
+                    completeModal.querySelector('.card').style.transform = 'translateY(0)';
+                }, 10);
+            });
+            
+            if (closeModalBtn) {
+                closeModalBtn.addEventListener('click', function() {
+                    completeModal.style.opacity = '0';
+                    completeModal.querySelector('.card').style.transform = 'translateY(20px)';
+                    setTimeout(() => {
+                        completeModal.style.display = 'none';
+                    }, 300);
+                });
+            }
+            
+            window.addEventListener('click', function(event) {
+                if (event.target === completeModal) {
+                    completeModal.style.opacity = '0';
+                    completeModal.querySelector('.card').style.transform = 'translateY(20px)';
+                    setTimeout(() => {
+                        completeModal.style.display = 'none';
+                    }, 300);
+                }
+            });
+        }
+    });
+</script>
+<script src="{{ url_for('static', filename='js/recipe.js') }}"></script>
+{% endblock %}
