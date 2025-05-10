@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}CookBookIt - Make the Most of Your Kitchen{% endblock %}
+
+{% block content %}
+<div class="slide-in-up">
+    <div class="text-center mb-5">
+        <h1>Welcome to CookBookIt</h1>
+        <p class="mb-4">Make the most of your kitchen by generating recipes from available ingredients, tracking expiration dates, and simplifying meal planning.</p>
+        
+        {% if current_user.is_authenticated %}
+            <div class="d-flex justify-content-center gap-3">
+                <a href="{{ url_for('recipe.index') }}" class="btn btn-primary btn-lg">Find Recipes</a>
+                <a href="{{ url_for('inventory.index') }}" class="btn btn-outline btn-lg">Manage Inventory</a>
+            </div>
+        {% else %}
+            <div class="d-flex justify-content-center gap-3">
+                <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg">Get Started</a>
+                <a href="{{ url_for('auth.login') }}" class="btn btn-outline btn-lg">Login</a>
+            </div>
+        {% endif %}
+    </div>
+    
+    <div class="mb-5">
+        <h2 class="text-center mb-4">How It Works</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem;">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="card-title">Track Ingredients</h3>
+                    <p class="card-text">Add ingredients to your inventory and track their expiration dates to reduce food waste.</p>
+                </div>
+            </div>
+            
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="card-title">Find Recipes</h3>
+                    <p class="card-text">Discover recipes you can make with ingredients you already have in your kitchen.</p>
+                </div>
+            </div>
+            
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="card-title">Plan Meals</h3>
+                    <p class="card-text">Create personalized meal plans based on your available ingredients and dietary needs.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mb-5">
+        <h2 class="text-center mb-4">Featured Recipes</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+            {% for recipe in featured_recipes %}
+            <div class="recipe-card card">
+                <img src="{{ url_for('static', filename='images/recipes/' + str(recipe._id) + '.jpg') }}" 
+                     alt="{{ recipe.name }}" 
+                     onerror="this.src='/static/images/placeholder.jpg'" 
+                     class="card-img">
+                <div class="card-body">
+                    <h3 class="card-title">{{ recipe.name }}</h3>
+                    <p class="card-text">{{ recipe.description }}</p>
+                    <div class="recipe-meta">
+                        <span>{{ recipe.prep_time + recipe.cook_time }} mins</span>
+                        <span>{{ recipe.difficulty }}</span>
+                    </div>
+                    <div class="recipe-tags">
+                        {% for tag in recipe.tags[:3] %}
+                            <span class="recipe-tag">{{ tag }}</span>
+                        {% endfor %}
+                    </div>
+                    <a href="{{ url_for('auth.login') if not current_user.is_authenticated else url_for('recipe.detail', recipe_id=recipe._id) }}" 
+                       class="btn btn-primary mt-2">View Recipe</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <div class="mb-5">
+        <h2 class="text-center mb-4">Why CookBookIt?</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem;">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="card-title">Reduce Food Waste</h3>
+                    <p class="card-text">Track expiration dates and get notified when ingredients are about to expire.</p>
+                </div>
+            </div>
+            
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="card-title">Save Money</h3>
+                    <p class="card-text">Use what you already have instead of buying new ingredients for every meal.</p>
+                </div>
+            </div>
+            
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="card-title">Eat Healthier</h3>
+                    <p class="card-text">Filter recipes based on your dietary preferences and nutritional needs.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
