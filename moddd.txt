@@ -1,0 +1,419 @@
+{% extends "base.html" %}
+
+{% block title %}CookBookIt - Meal Plan{% endblock %}
+
+{% block content %}
+
+<div class="slide-in-up">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Your Meal Plan</h1>
+        <div>
+            <a href="{{ url_for('meal_plan.grocery_list') }}" class="btn btn-outline">Generate Grocery List</a>
+            {% if meal_plans|length > 0 %}
+            <a href="{{ url_for('meal_plan.generate_plan', plan_id=meal_plans[0].id) }}" class="btn btn-primary">Auto-Generate Plan</a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if meal_plans|length > 0 %}
+        {% set meal_plan = meal_plans[0] %}
+        <div class="card mb-4">
+            <div class="card-body">
+                <h2>Week of {{ meal_plan.week_start_date.strftime('%B %d, %Y') }}</h2>
+               
+                <div class="meal-plan-container mt-3">
+                    <div class="meal-plan-grid">
+                        <!-- Headers - days of week -->
+                        <div class="meal-plan-corner"></div>
+                        <div class="meal-plan-header">Mon</div>
+                        <div class="meal-plan-header">Tue</div>
+                        <div class="meal-plan-header">Wed</div>
+                        <div class="meal-plan-header">Thu</div>
+                        <div class="meal-plan-header">Fri</div>
+                        <div class="meal-plan-header">Sat</div>
+                        <div class="meal-plan-header">Sun</div>
+                       
+                        <!-- Breakfast row -->
+                        <div class="meal-plan-time">Breakfast</div>
+                        {% for day in range(7) %}
+                            <div class="meal-plan-cell" data-day="{{ day }}" data-meal-type="breakfast">
+                                {% set has_meal = false %}
+                                {% for item in meal_plan.items %}
+                                    {% if item.day_of_week == day and item.meal_type == 'breakfast' %}
+                                        {% set has_meal = true %}
+                                        <div class="meal-plan-recipe">
+                                            <a href="{{ url_for('recipe.detail', recipe_id=item.recipe._id) }}">{{ item.recipe.name }}</a>
+                                            <form method="POST" action="{{ url_for('meal_plan.remove_recipe', item_id=item.id) }}" style="display: inline;">
+                                                <button type="submit" class="btn btn-sm btn-danger" style="padding: 0.1rem 0.3rem; font-size: 0.7rem;">×</button>
+                                            </form>
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+                               
+                                {% if not has_meal %}
+                                    <div class="meal-plan-empty">No meal planned</div>
+                                    <button class="btn btn-sm btn-outline add-recipe-btn" data-day="{{ day }}" data-meal-type="breakfast">Add</button>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                       
+                        <!-- Lunch row -->
+                        <div class="meal-plan-time">Lunch</div>
+                        {% for day in range(7) %}
+                            <div class="meal-plan-cell" data-day="{{ day }}" data-meal-type="lunch">
+                                {% set has_meal = false %}
+                                {% for item in meal_plan.items %}
+                                    {% if item.day_of_week == day and item.meal_type == 'lunch' %}
+                                        {% set has_meal = true %}
+                                        <div class="meal-plan-recipe">
+                                            <a href="{{ url_for('recipe.detail', recipe_id=item.recipe._id) }}">{{ item.recipe.name }}</a>
+                                            <form method="POST" action="{{ url_for('meal_plan.remove_recipe', item_id=item.id) }}" style="display: inline;">
+                                                <button type="submit" class="btn btn-sm btn-danger" style="padding: 0.1rem 0.3rem; font-size: 0.7rem;">×</button>
+                                            </form>
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+                               
+                                {% if not has_meal %}
+                                    <div class="meal-plan-empty">No meal planned</div>
+                                    <button class="btn btn-sm btn-outline add-recipe-btn" data-day="{{ day }}" data-meal-type="lunch">Add</button>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                       
+                        <!-- Dinner row -->
+                        <div class="meal-plan-time">Dinner</div>
+                        {% for day in range(7) %}
+                            <div class="meal-plan-cell" data-day="{{ day }}" data-meal-type="dinner">
+                                {% set has_meal = false %}
+                                {% for item in meal_plan.items %}
+                                    {% if item.day_of_week == day and item.meal_type == 'dinner' %}
+                                        {% set has_meal = true %}
+                                        <div class="meal-plan-recipe">
+                                            <a href="{{ url_for('recipe.detail', recipe_id=item.recipe._id) }}">{{ item.recipe.name }}</a>
+                                            <form method="POST" action="{{ url_for('meal_plan.remove_recipe', item_id=item.id) }}" style="display: inline;">
+                                                <button type="submit" class="btn btn-sm btn-danger" style="padding: 0.1rem 0.3rem; font-size: 0.7rem;">×</button>
+                                            </form>
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+                               
+                                {% if not has_meal %}
+                                    <div class="meal-plan-empty">No meal planned</div>
+                                    <button class="btn btn-sm btn-outline add-recipe-btn" data-day="{{ day }}" data-meal-type="dinner">Add</button>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="alert alert-info">
+            <h4>No meal plan found for this week</h4>
+            <p>Create a new meal plan to get started.</p>
+        </div>
+    {% endif %}
+
+    {% if recipe_suggestions|length > 0 %}
+        <h2 class="mb-3">Suggested Recipes</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem;">
+            {% for recipe in recipe_suggestions %}
+                <div class="recipe-card card">
+                    <img src="{{ url_for('static', filename='images/recipes/' + (recipe._id|string) + '.jpg') }}"
+                    alt="{{ recipe.name }}"
+                    onerror="this.src='/static/images/placeholder.jpg'"
+                    class="card-img">
+                    <div class="card-body">
+                        <h3 class="card-title">{{ recipe.name }}</h3>
+                        <p class="card-text">{{ recipe.description }}</p>
+                        <div class="recipe-meta">
+                            <span>{{ recipe.prep_time + recipe.cook_time }} mins</span>
+                            <span>{{ recipe.difficulty }}</span>
+                        </div>
+                        <div class="match-indicator">
+                            <div class="match-bar" data-percentage="{{ recipe.match_percentage or 0 }}">
+                                <div class="match-progress" style="width: 0%"></div>
+                            </div>
+                            <span class="match-text">{{ recipe.match_percentage|round|int }}%</span>
+                        </div>
+                        <a href="{{ url_for('recipe.detail', recipe_id=recipe._id) }}" class="btn btn-primary mt-2">View Recipe</a>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Add Recipe Modal -->
+    <div id="meal-plan-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.3s;">
+        <div class="card" style="width: 100%; max-width: 500px; transform: translateY(20px); transition: transform 0.3s;">
+            <div class="card-body">
+                <h2>Add Recipe to Meal Plan</h2>
+               
+                <form id="add-recipe-form" method="POST" action="{{ url_for('meal_plan.add_recipe') }}">
+                    {% if meal_plans|length > 0 %}
+                        <input type="hidden" name="plan_id" value="{{ meal_plans[0].id }}">
+                    {% endif %}
+                    <input type="hidden" id="day_of_week" name="day_of_week" value="0">
+                    <input type="hidden" id="meal_type" name="meal_type" value="breakfast">
+                   
+                    <div class="form-group">
+                        <label for="recipe_id" class="form-label">Select Recipe</label>
+                        <select id="recipe_id" name="recipe_id" class="form-select">
+                            {% for recipe in recipe_suggestions %}
+                                <option value="{{ recipe._id }}">{{ recipe.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                   
+                    <div class="d-flex justify-content-between mt-4">
+                        <button type="button" id="close-meal-plan-modal" class="btn btn-outline">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Add to Meal Plan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Meal Plan - Add recipe modal
+    const addRecipeButtons = document.querySelectorAll('.add-recipe-btn');
+    const mealPlanModal = document.getElementById('meal-plan-modal');
+    const closeMealPlanModalBtn = document.getElementById('close-meal-plan-modal');
+    const addRecipeForm = document.getElementById('add-recipe-form');
+   
+    if (addRecipeButtons.length > 0 && mealPlanModal) {
+        addRecipeButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const day = this.getAttribute('data-day');
+                const mealType = this.getAttribute('data-meal-type');
+               
+                document.getElementById('day_of_week').value = day;
+                document.getElementById('meal_type').value = mealType;
+               
+                // Store reference to the clicked cell
+                addRecipeForm.setAttribute('data-target-cell', `[data-day="${day}"][data-meal-type="${mealType}"]`);
+                
+                mealPlanModal.style.display = 'flex';
+                setTimeout(() => {
+                    mealPlanModal.style.opacity = '1';
+                    mealPlanModal.querySelector('.card').style.transform = 'translateY(0)';
+                }, 10);
+            });
+        });
+       
+        if (closeMealPlanModalBtn) {
+            closeMealPlanModalBtn.addEventListener('click', function() {
+                closeModal();
+            });
+        }
+       
+        window.addEventListener('click', function(event) {
+            if (event.target === mealPlanModal) {
+                closeModal();
+            }
+        });
+        
+        function closeModal() {
+            mealPlanModal.style.opacity = '0';
+            mealPlanModal.querySelector('.card').style.transform = 'translateY(20px)';
+            setTimeout(() => {
+                mealPlanModal.style.display = 'none';
+            }, 300);
+        }
+    }
+
+    // Check URL params to see if we need to hide placeholders (for after form submission)
+    const urlParams = new URLSearchParams(window.location.search);
+    const justAdded = urlParams.get('added');
+    if (justAdded) {
+        const [day, mealType] = justAdded.split(',');
+        const targetCell = document.querySelector(`[data-day="${day}"][data-meal-type="${mealType}"]`);
+        if (targetCell) {
+            const placeholder = targetCell.querySelector('.meal-plan-empty');
+            const addButton = targetCell.querySelector('.add-recipe-btn');
+            
+            if (placeholder) {
+                placeholder.remove();
+            }
+            
+            if (addButton) {
+                addButton.remove();
+            }
+        }
+    }
+   
+    // Handle form submit and remove "no meal planned" placeholder
+    if (addRecipeForm) {
+        addRecipeForm.addEventListener('submit', function(e) {
+            // Prevent the default form submission
+            e.preventDefault();
+            
+            // Get the target cell info for the redirect
+            const day = document.getElementById('day_of_week').value;
+            const mealType = document.getElementById('meal_type').value;
+            
+            // Append to the form action URL
+            const formAction = this.getAttribute('action');
+            this.setAttribute('action', formAction + '?day=' + day + '&meal_type=' + mealType);
+            
+            // Now submit the form
+            this.submit();
+        });
+    }
+   
+    // Recipe match percentage visual indicators
+    const matchBars = document.querySelectorAll('.match-bar');
+    matchBars.forEach(bar => {
+        const percentage = parseFloat(bar.getAttribute('data-percentage'));
+        const progressBar = bar.querySelector('.match-progress');
+       
+        setTimeout(() => {
+            progressBar.style.width = `${percentage}%`;
+           
+            // Set color based on match percentage
+            if (percentage >= 80) {
+                progressBar.style.backgroundColor = 'var(--success)';
+            } else if (percentage >= 50) {
+                progressBar.style.backgroundColor = 'var(--sage-green)';
+            } else if (percentage >= 30) {
+                progressBar.style.backgroundColor = 'var(--warning)';
+            } else {
+                progressBar.style.backgroundColor = 'var(--terracotta)';
+            }
+        }, 100);
+    });
+});
+</script>
+
+<style>
+.meal-plan-container {
+    width: 100%;
+    overflow-x: auto;
+    position: relative;
+}
+
+.meal-plan-grid {
+    display: grid;
+    grid-template-columns: 100px repeat(7, minmax(150px, 1fr));
+    grid-template-rows: auto repeat(3, auto);
+    gap: 8px;
+    min-width: 1050px; /* Ensures the grid has a minimum width */
+}
+
+.meal-plan-corner {
+    grid-column: 1;
+    grid-row: 1;
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background-color: white;
+}
+
+.meal-plan-header {
+    font-weight: bold;
+    padding: 8px;
+    text-align: center;
+    background-color: var(--sage-green-light);
+    border-radius: 4px;
+}
+
+.meal-plan-time {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--gray-200);
+    position: sticky;
+    left: 0;
+    z-index: 2;
+}
+
+.meal-plan-cell {
+    padding: 8px;
+    min-height: 80px;
+    border: 1px solid var(--gray-300);
+    border-radius: 4px;
+    position: relative;
+    background-color: white;
+}
+
+.meal-plan-recipe {
+    background-color: var(--sage-green-light);
+    padding: 6px;
+    border-radius: 4px;
+    margin-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.meal-plan-recipe a {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex-grow: 1;
+    margin-right: 8px;
+}
+
+.meal-plan-empty {
+    color: var(--gray-500);
+    font-style: italic;
+    margin-bottom: 4px;
+}
+
+#meal-plan-modal.modal-open {
+    opacity: 1;
+}
+
+#meal-plan-modal.modal-open .card {
+    transform: translateY(0);
+}
+
+/* Fix for modal animation */
+#meal-plan-modal {
+    display: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+#meal-plan-modal .card {
+    transform: translateY(20px);
+    transition: transform 0.3s ease;
+}
+
+/* Add a subtle shadow to highlight the sticky columns */
+.meal-plan-time {
+    box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+}
+</style>
+{% endblock %}
+
+------------------------------------------
+
+@meal_plan_bp.route('/add', methods=['POST'])
+@login_required
+def add_recipe():
+    plan_id = request.form.get('plan_id')
+    recipe_id = request.form.get('recipe_id')
+    day_of_week = int(request.form.get('day_of_week'))
+    meal_type = request.form.get('meal_type')
+
+    if not all([plan_id, recipe_id, day_of_week, meal_type]):
+        flash('Missing required fields.', 'danger')
+        return redirect(url_for('meal_plan.index'))
+
+    # Add recipe to meal plan
+    updated_plan = MealPlan.add_item(plan_id, recipe_id, day_of_week, meal_type)
+
+    if updated_plan:
+        flash('Recipe added to meal plan!', 'success')
+    else:
+        flash('Error adding recipe to meal plan.', 'danger')
+
+    # Pass the day and meal type in the redirect URL for client-side processing
+    return redirect(url_for('meal_plan.index', added=f"{day_of_week},{meal_type}"))
