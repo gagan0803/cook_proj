@@ -1,0 +1,723 @@
+from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
+from flask_login import login_required, current_user
+from models.meal_plan import MealPlan
+from models.recipe import Recipe
+from models.inventory import Inventory
+from datetime import datetime, timedelta
+from database.mysql_setup import get_connection
+import random
+
+meal_plan_bp = Blueprint('meal_plan', __name__, url_prefix='/meal-plan')
+
+@meal_plan_bp.route('/')
+@login_required
+def index():
+    # Determine the current week's start date (Monday)
+    today = datetime.now().date()
+    days_since_monday = today.weekday()
+    week_start_date = today - timedelta(days=days_since_monday)
+
+    # Get meal plans for current week
+    meal_plans = MealPlan.get_by_user(current_user.id, week_start_date)
+
+    # If no meal plan exists for this week, create one
+    if not meal_plans:
+        meal_plan = MealPlan.create(current_user.id, week_start_date)
+        meal_plans = [meal_plan] if meal_plan else []
+
+    # Get user's inventory ingredients for recipe suggestions
+    inventory_items = Inventory.get_by_user_id(current_user.id)
+    ingredient_names = [item.ingredient_name for item in inventory_items]
+
+    # Get recipe suggestions based on inventory
+    recipe_suggestions = Recipe.search_by_ingredients(ingredient_names)
+
+    # Apply dietary preferences to suggestions
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM user_preferences WHERE user_id = %s", (current_user.id,))
+    preferences = cursor.fetchone()
+    cursor.close()
+
+    if preferences and any([preferences['is_vegetarian'], preferences['is_vegan'],
+                       preferences['is_gluten_free'], preferences['is_dairy_free']]):
+        dietary_filters = {
+            'vegetarian': preferences['is_vegetarian'],
+            'vegan': preferences['is_vegan'],
+            'gluten_free': preferences['is_gluten_free'],
+            'dairy_free': preferences['is_dairy_free']
+        }
+        # Only apply filters that are true
+        active_filters = {k: v for k, v in dietary_filters.items() if v}
+   
+        if active_filters:
+            recipe_suggestions = Recipe.filter_by_dietary(recipe_suggestions, active_filters)
+
+    # Limit to top 10 suggestions
+    recipe_suggestions = recipe_suggestions[:10]
+
+    return render_template('meal_plan/index.html',
+                      meal_plans=meal_plans,
+                      week_start_date=week_start_date,
+                      recipe_suggestions=recipe_suggestions)
+
+@meal_plan_bp.route('/add', methods=['POST'])
+@login_required
+def add_recipe():
+    plan_id = request.form.get('plan_id')
+    recipe_id = request.form.get('recipe_id')
+    day_of_week = int(request.form.get('day_of_week'))
+    meal_type = request.form.get('meal_type')
+
+    if not all([plan_id, recipe_id, day_of_week, meal_type]):
+        flash('Missing required fields.', 'danger')
+        return redirect(url_for('meal_plan.index'))
+
+    # Add recipe to meal plan
+    updated_plan = MealPlan.add_item(plan_id, recipe_id, day_of_week, meal_type)
+
+    if updated_plan:
+        flash('Recipe added to meal plan!', 'success')
+    else:
+        flash('Error adding recipe to meal plan.', 'danger')
+
+    return redirect(url_for('meal_plan.index'))
+
+@meal_plan_bp.route('/remove/<int:item_id>', methods=['POST'])
+@login_required
+def remove_recipe(item_id):
+    # Remove recipe from meal plan
+    updated_plan = MealPlan.remove_item(item_id)
+
+    if updated_plan:
+        flash('Recipe removed from meal plan!', 'success')
+    else:
+        flash('Error removing recipe from meal plan.', 'danger')
+
+    return redirect(url_for('meal_plan.index'))
+
+@meal_plan_bp.route('/generate', methods=['GET'])
+@login_required
+def generate_plan():
+    # Get the meal plan ID from the query string
+    plan_id = request.args.get('plan_id')
+
+    if not plan_id:
+        flash('No meal plan specified.', 'danger')
+        return redirect(url_for('meal_plan.index'))
+
+    # Get user's inventory items
+    inventory_items = Inventory.get_by_user_id(current_user.id)
+
+    # Create a lookup table for inventory items
+    inventory_lookup = {}
+    for item in inventory_items:
+        inventory_lookup[item.ingredient_name] = {
+            'quantity': item.quantity,
+            'unit': item.unit
+        }
+
+    # Get user's dietary preferences
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM user_preferences WHERE user_id = %s", (current_user.id,))
+    preferences = cursor.fetchone()
+    cursor.close()
+
+    # Get all recipes
+    all_recipes = Recipe.get_all()
+
+    # Apply dietary filters if applicable
+    if preferences and any([preferences['is_vegetarian'], preferences['is_vegan'],
+                       preferences['is_gluten_free'], preferences['is_dairy_free']]):
+        dietary_filters = {
+            'vegetarian': preferences['is_vegetarian'],
+            'vegan': preferences['is_vegan'],
+            'gluten_free': preferences['is_gluten_free'],
+            'dairy_free': preferences['is_dairy_free']
+        }
+        # Only apply filters that are true
+        active_filters = {k: v for k, v in dietary_filters.items() if v}
+   
+        if active_filters:
+            all_recipes = Recipe.filter_by_dietary(all_recipes, active_filters)
+
+    if len(all_recipes) < 10:  # Minimum recipes needed for a varied meal plan
+        flash('Not enough suitable recipes found. Please adjust your dietary preferences.', 'warning')
+        return redirect(url_for('meal_plan.index'))
+
+    # Clear existing meal plan
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM meal_plan_items WHERE meal_plan_id = %s", (plan_id,))
+    conn.commit()
+    cursor.close()
+
+    # Score recipes based on available ingredients
+    scored_recipes = []
+    for recipe in all_recipes:
+        # Calculate how many ingredients we have for this recipe
+        available_count = 0
+        missing_count = 0
+        total_ingredients = len(recipe.get('ingredients', []))
+   
+        for ingredient in recipe.get('ingredients', []):
+            name = ingredient.get('name')
+            if name in inventory_lookup:
+                # Check if we have enough quantity
+                required_amount = ingredient.get('amount', 0)
+                user_quantity = inventory_lookup[name]['quantity']
+                
+                # Convert units if necessary
+                if inventory_lookup[name]['unit'] != ingredient.get('unit', ''):
+                    converted = Inventory.convert_units(user_quantity, inventory_lookup[name]['unit'], ingredient.get('unit', ''))
+                    if converted is not None:
+                        user_quantity = converted
+                
+                if user_quantity >= required_amount:
+                    available_count += 1
+                else:
+                    missing_count += 1
+            else:
+                missing_count += 1
+   
+        if total_ingredients > 0:
+            # Calculate match percentage based on available ingredients
+            match_percentage = (available_count / total_ingredients) * 100
+            
+            # If missing too many ingredients, severely reduce score
+            if missing_count > total_ingredients * 0.5:  # If missing more than 50% of ingredients
+                score = match_percentage * 0.5  # Reduce score by half
+            else:
+                score = match_percentage
+        else:
+            score = 0
+            match_percentage = 0
+       
+        # Add difficulty and time factors to scoring
+        if recipe.get('difficulty') == 'Easy':
+            score += 10
+        elif recipe.get('difficulty') == 'Hard':
+            score -= 10
+       
+        # Prefer recipes that don't take too long
+        total_time = recipe.get('prep_time', 0) + recipe.get('cook_time', 0)
+        if total_time <= 30:
+            score += 10
+        elif total_time >= 90:
+            score -= 10
+       
+        scored_recipes.append({
+            'recipe': recipe,
+            'score': score,
+            'match_percentage': match_percentage
+        })
+
+    # Sort recipes by score (highest first)
+    scored_recipes.sort(key=lambda x: x['score'], reverse=True)
+
+    # Get top 50% of recipes by score to ensure we're using recipes that match inventory well
+    cutoff = max(10, len(scored_recipes) // 2)  # At least 10 recipes or half, whichever is larger
+    top_recipes = scored_recipes[:cutoff]
+
+    # Group recipes by meal type preference
+    breakfast_recipes = [r for r in top_recipes if 'breakfast' in r['recipe'].get('tags', [])]
+    lunch_recipes = [r for r in top_recipes if any(tag in r['recipe'].get('tags', []) for tag in ['lunch', 'sandwich', 'salad', 'soup'])]
+    dinner_recipes = [r for r in top_recipes if any(tag in r['recipe'].get('tags', []) for tag in ['dinner', 'main', 'pasta', 'meat', 'fish'])]
+
+    # If not enough specific recipes, add more from general pool of top recipes
+    if len(breakfast_recipes) < 7:
+        # Add recipes that are not already categorized
+        remaining = [r for r in top_recipes if r not in breakfast_recipes and r not in lunch_recipes and r not in dinner_recipes]
+        breakfast_recipes.extend(remaining[:7-len(breakfast_recipes)])
+
+    if len(lunch_recipes) < 7:
+        # Add recipes that are not already categorized
+        remaining = [r for r in top_recipes if r not in breakfast_recipes and r not in lunch_recipes and r not in dinner_recipes]
+        lunch_recipes.extend(remaining[:7-len(lunch_recipes)])
+
+    if len(dinner_recipes) < 7:
+        # Add recipes that are not already categorized
+        remaining = [r for r in top_recipes if r not in breakfast_recipes and r not in lunch_recipes and r not in dinner_recipes]
+        dinner_recipes.extend(remaining[:7-len(dinner_recipes)])
+
+    # Create meal plan for each day
+    meal_types = ['breakfast', 'lunch', 'dinner']
+
+    for day in range(7):  # 0-6 for Monday to Sunday
+        # Select a breakfast recipe
+        if breakfast_recipes:
+            breakfast = random.choice(breakfast_recipes[:min(10, len(breakfast_recipes))])
+            MealPlan.add_item(plan_id, str(breakfast['recipe']['_id']), day, 'breakfast')
+            # Remove recipe to avoid duplicates
+            breakfast_recipes.remove(breakfast)
+   
+        # Select a lunch recipe
+        if lunch_recipes:
+            lunch = random.choice(lunch_recipes[:min(10, len(lunch_recipes))])
+            MealPlan.add_item(plan_id, str(lunch['recipe']['_id']), day, 'lunch')
+            # Remove recipe to avoid duplicates
+            lunch_recipes.remove(lunch)
+   
+        # Select a dinner recipe
+        if dinner_recipes:
+            dinner = random.choice(dinner_recipes[:min(10, len(dinner_recipes))])
+            MealPlan.add_item(plan_id, str(dinner['recipe']['_id']), day, 'dinner')
+            # Remove recipe to avoid duplicates
+            dinner_recipes.remove(dinner)
+
+    flash('Personalized meal plan generated successfully!', 'success')
+    return redirect(url_for('meal_plan.index'))
+
+@meal_plan_bp.route('/grocery-list')
+@login_required
+def grocery_list():
+    # Get the current meal plan
+    today = datetime.now().date()
+    days_since_monday = today.weekday()
+    week_start_date = today - timedelta(days=days_since_monday)
+
+    meal_plans = MealPlan.get_by_user(current_user.id, week_start_date)
+
+    if not meal_plans:
+        flash('No meal plan found for this week.', 'warning')
+        return redirect(url_for('meal_plan.index'))
+
+    meal_plan = meal_plans[0]
+
+    # Get user's inventory
+    inventory_items = Inventory.get_by_user_id(current_user.id)
+    user_ingredients = {item.ingredient_name: {'quantity': item.quantity, 'unit': item.unit}
+                      for item in inventory_items}
+
+    # Compile grocery list from meal plan
+    grocery_list = {}
+
+    for item in meal_plan.items:
+        recipe = item['recipe']
+   
+        for ingredient in recipe.get('ingredients', []):
+            name = ingredient.get('name')
+            amount = ingredient.get('amount', 0)
+            unit = ingredient.get('unit', '')
+       
+            # Check if user already has this ingredient
+            if name in user_ingredients:
+                user_quantity = user_ingredients[name]['quantity']
+                user_unit = user_ingredients[name]['unit']
+           
+                # Convert units if needed
+                if user_unit != unit:
+                    converted = Inventory.convert_units(user_quantity, user_unit, unit)
+                    if converted is not None:
+                        user_quantity = converted
+           
+                # If user has enough, skip
+                if user_quantity >= amount:
+                    continue
+           
+                # Otherwise, add the difference
+                amount -= user_quantity
+       
+            # Add to grocery list
+            if name in grocery_list:
+                # If unit matches, add quantities
+                if grocery_list[name]['unit'] == unit:
+                    grocery_list[name]['amount'] += amount
+                else:
+                    # Try to convert
+                    converted = Inventory.convert_units(grocery_list[name]['amount'], grocery_list[name]['unit'], unit)
+                    if converted is not None:
+                        grocery_list[name]['amount'] = converted + amount
+                        grocery_list[name]['unit'] = unit
+                    else:
+                        # Can't convert, keep separate entry
+                        grocery_list[f"{name} ({unit})"] = {'name': name, 'amount': amount, 'unit': unit}
+            else:
+                grocery_list[name] = {'name': name, 'amount': amount, 'unit': unit}
+
+    # Convert to list
+    grocery_items = list(grocery_list.values())
+
+    # Sort by name
+    grocery_items.sort(key=lambda x: x['name'])
+
+    return render_template('meal_plan/grocery_list.html',
+                          meal_plan=meal_plan,
+                          grocery_list=grocery_items)
+
+----------------------------------------------------------------
+
+
+
+{% extends "base.html" %}
+
+{% block title %}CookBookIt - Meal Plan{% endblock %}
+
+{% block content %}
+
+<div class="slide-in-up">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Your Meal Plan</h1>
+        <div>
+            <a href="{{ url_for('meal_plan.grocery_list') }}" class="btn btn-outline">Generate Grocery List</a>
+            {% if meal_plans|length > 0 %}
+            <a href="{{ url_for('meal_plan.generate_plan', plan_id=meal_plans[0].id) }}" class="btn btn-primary">Auto-Generate Plan</a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if meal_plans|length > 0 %}
+        {% set meal_plan = meal_plans[0] %}
+        <div class="card mb-4">
+            <div class="card-body">
+                <h2>Week of {{ meal_plan.week_start_date.strftime('%B %d, %Y') }}</h2>
+               
+                <div class="meal-plan-scroll-container">
+                    <div class="meal-plan-grid mt-3">
+                        <!-- Headers - days of week -->
+                        <div class="meal-plan-corner"></div>
+                        <div class="meal-plan-header">Mon</div>
+                        <div class="meal-plan-header">Tue</div>
+                        <div class="meal-plan-header">Wed</div>
+                        <div class="meal-plan-header">Thu</div>
+                        <div class="meal-plan-header">Fri</div>
+                        <div class="meal-plan-header">Sat</div>
+                        <div class="meal-plan-header">Sun</div>
+                       
+                        <!-- Breakfast row -->
+                        <div class="meal-plan-time">Breakfast</div>
+                        {% for day in range(7) %}
+                            <div class="meal-plan-cell" data-day="{{ day }}" data-meal-type="breakfast">
+                                {% set has_meal = false %}
+                                {% for item in meal_plan.items %}
+                                    {% if item.day_of_week == day and item.meal_type == 'breakfast' %}
+                                        {% set has_meal = true %}
+                                        <div class="meal-plan-recipe">
+                                            <a href="{{ url_for('recipe.detail', recipe_id=item.recipe._id) }}">{{ item.recipe.name }}</a>
+                                            <form method="POST" action="{{ url_for('meal_plan.remove_recipe', item_id=item.id) }}" style="display: inline;">
+                                                <button type="submit" class="btn btn-sm btn-danger" style="padding: 0.1rem 0.3rem; font-size: 0.7rem;">×</button>
+                                            </form>
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+                               
+                                {% if not has_meal %}
+                                    <div class="meal-plan-empty">No meal planned</div>
+                                    <button class="btn btn-sm btn-outline add-recipe-btn" data-day="{{ day }}" data-meal-type="breakfast">Add</button>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                       
+                        <!-- Lunch row -->
+                        <div class="meal-plan-time">Lunch</div>
+                        {% for day in range(7) %}
+                            <div class="meal-plan-cell" data-day="{{ day }}" data-meal-type="lunch">
+                                {% set has_meal = false %}
+                                {% for item in meal_plan.items %}
+                                    {% if item.day_of_week == day and item.meal_type == 'lunch' %}
+                                        {% set has_meal = true %}
+                                        <div class="meal-plan-recipe">
+                                            <a href="{{ url_for('recipe.detail', recipe_id=item.recipe._id) }}">{{ item.recipe.name }}</a>
+                                            <form method="POST" action="{{ url_for('meal_plan.remove_recipe', item_id=item.id) }}" style="display: inline;">
+                                                <button type="submit" class="btn btn-sm btn-danger" style="padding: 0.1rem 0.3rem; font-size: 0.7rem;">×</button>
+                                            </form>
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+                               
+                                {% if not has_meal %}
+                                    <div class="meal-plan-empty">No meal planned</div>
+                                    <button class="btn btn-sm btn-outline add-recipe-btn" data-day="{{ day }}" data-meal-type="lunch">Add</button>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                       
+                        <!-- Dinner row -->
+                        <div class="meal-plan-time">Dinner</div>
+                        {% for day in range(7) %}
+                            <div class="meal-plan-cell" data-day="{{ day }}" data-meal-type="dinner">
+                                {% set has_meal = false %}
+                                {% for item in meal_plan.items %}
+                                    {% if item.day_of_week == day and item.meal_type == 'dinner' %}
+                                        {% set has_meal = true %}
+                                        <div class="meal-plan-recipe">
+                                            <a href="{{ url_for('recipe.detail', recipe_id=item.recipe._id) }}">{{ item.recipe.name }}</a>
+                                            <form method="POST" action="{{ url_for('meal_plan.remove_recipe', item_id=item.id) }}" style="display: inline;">
+                                                <button type="submit" class="btn btn-sm btn-danger" style="padding: 0.1rem 0.3rem; font-size: 0.7rem;">×</button>
+                                            </form>
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+                               
+                                {% if not has_meal %}
+                                    <div class="meal-plan-empty">No meal planned</div>
+                                    <button class="btn btn-sm btn-outline add-recipe-btn" data-day="{{ day }}" data-meal-type="dinner">Add</button>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="alert alert-info">
+            <h4>No meal plan found for this week</h4>
+            <p>Create a new meal plan to get started.</p>
+        </div>
+    {% endif %}
+
+    {% if recipe_suggestions|length > 0 %}
+        <h2 class="mb-3">Suggested Recipes</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem;">
+            {% for recipe in recipe_suggestions %}
+                <div class="recipe-card card">
+                    <img src="{{ url_for('static', filename='images/recipes/' + (recipe._id|string) + '.jpg') }}"
+                    alt="{{ recipe.name }}"
+                    onerror="this.src='/static/images/placeholder.jpg'"
+                    class="card-img">
+                    <div class="card-body">
+                        <h3 class="card-title">{{ recipe.name }}</h3>
+                        <p class="card-text">{{ recipe.description }}</p>
+                        <div class="recipe-meta">
+                            <span>{{ recipe.prep_time + recipe.cook_time }} mins</span>
+                            <span>{{ recipe.difficulty }}</span>
+                        </div>
+                        <div class="match-indicator">
+                            <div class="match-bar" data-percentage="{{ recipe.match_percentage or 0 }}">
+                                <div class="match-progress" style="width: 0%"></div>
+                            </div>
+                            <span class="match-text">{{ recipe.match_percentage|round|int }}%</span>
+                        </div>
+                        <a href="{{ url_for('recipe.detail', recipe_id=recipe._id) }}" class="btn btn-primary mt-2">View Recipe</a>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Add Recipe Modal -->
+    <div id="meal-plan-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.3s;">
+        <div class="card" style="width: 100%; max-width: 500px; transform: translateY(20px); transition: transform 0.3s;">
+            <div class="card-body">
+                <h2>Add Recipe to Meal Plan</h2>
+               
+                <form id="add-recipe-form" method="POST" action="{{ url_for('meal_plan.add_recipe') }}">
+                    {% if meal_plans|length > 0 %}
+                        <input type="hidden" name="plan_id" value="{{ meal_plans[0].id }}">
+                    {% endif %}
+                    <input type="hidden" id="day_of_week" name="day_of_week" value="0">
+                    <input type="hidden" id="meal_type" name="meal_type" value="breakfast">
+                   
+                    <div class="form-group">
+                        <label for="recipe_id" class="form-label">Select Recipe</label>
+                        <select id="recipe_id" name="recipe_id" class="form-select">
+                            {% for recipe in recipe_suggestions %}
+                                <option value="{{ recipe._id }}">{{ recipe.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                   
+                    <div class="d-flex justify-content-between mt-4">
+                        <button type="button" id="close-meal-plan-modal" class="btn btn-outline">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Add to Meal Plan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Meal Plan - Add recipe modal
+    const addRecipeButtons = document.querySelectorAll('.add-recipe-btn');
+    const mealPlanModal = document.getElementById('meal-plan-modal');
+    const closeMealPlanModalBtn = document.getElementById('close-meal-plan-modal');
+    const addRecipeForm = document.getElementById('add-recipe-form');
+   
+    if (addRecipeButtons.length > 0 && mealPlanModal) {
+        addRecipeButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const day = this.getAttribute('data-day');
+                const mealType = this.getAttribute('data-meal-type');
+               
+                document.getElementById('day_of_week').value = day;
+                document.getElementById('meal_type').value = mealType;
+               
+                // Store reference to the clicked cell
+                addRecipeForm.setAttribute('data-target-cell', `[data-day="${day}"][data-meal-type="${mealType}"]`);
+                
+                mealPlanModal.style.display = 'flex';
+                setTimeout(() => {
+                    mealPlanModal.style.opacity = '1';
+                    mealPlanModal.querySelector('.card').style.transform = 'translateY(0)';
+                }, 10);
+            });
+        });
+       
+        if (closeMealPlanModalBtn) {
+            closeMealPlanModalBtn.addEventListener('click', function() {
+                closeModal();
+            });
+        }
+       
+        window.addEventListener('click', function(event) {
+            if (event.target === mealPlanModal) {
+                closeModal();
+            }
+        });
+        
+        function closeModal() {
+            mealPlanModal.style.opacity = '0';
+            mealPlanModal.querySelector('.card').style.transform = 'translateY(20px)';
+            setTimeout(() => {
+                mealPlanModal.style.display = 'none';
+            }, 300);
+        }
+    }
+   
+    // Handle form submit and remove "no meal planned" placeholder
+    if (addRecipeForm) {
+        addRecipeForm.addEventListener('submit', function(e) {
+            // The form will still submit normally, but we want to fade out placeholders
+            // in the target cell immediately for better UX
+            const targetSelector = this.getAttribute('data-target-cell');
+            if (targetSelector) {
+                const targetCell = document.querySelector(targetSelector);
+                if (targetCell) {
+                    const placeholder = targetCell.querySelector('.meal-plan-empty');
+                    const addButton = targetCell.querySelector('.add-recipe-btn');
+                    
+                    if (placeholder) {
+                        placeholder.style.display = 'none';
+                    }
+                    
+                    if (addButton) {
+                        addButton.style.display = 'none';
+                    }
+                }
+            }
+        });
+    }
+   
+    // Recipe match percentage visual indicators
+    const matchBars = document.querySelectorAll('.match-bar');
+    matchBars.forEach(bar => {
+        const percentage = parseFloat(bar.getAttribute('data-percentage'));
+        const progressBar = bar.querySelector('.match-progress');
+       
+        setTimeout(() => {
+            progressBar.style.width = `${percentage}%`;
+           
+            // Set color based on match percentage
+            if (percentage >= 80) {
+                progressBar.style.backgroundColor = 'var(--success)';
+            } else if (percentage >= 50) {
+                progressBar.style.backgroundColor = 'var(--sage-green)';
+            } else if (percentage >= 30) {
+                progressBar.style.backgroundColor = 'var(--warning)';
+            } else {
+                progressBar.style.backgroundColor = 'var(--terracotta)';
+            }
+        }, 100);
+    });
+});
+</script>
+
+<style>
+.meal-plan-scroll-container {
+    width: 100%;
+    overflow-x: auto;
+    padding-bottom: 15px; /* Add padding for scrollbar */
+}
+
+.meal-plan-grid {
+    display: grid;
+    grid-template-columns: 100px repeat(7, minmax(140px, 1fr));
+    grid-template-rows: auto repeat(3, auto);
+    gap: 8px;
+    width: 100%;
+    min-width: 1100px; /* Minimum width to ensure horizontal scrolling */
+}
+
+.meal-plan-corner {
+    grid-column: 1;
+    grid-row: 1;
+}
+
+.meal-plan-header, .meal-plan-time {
+    font-weight: bold;
+    padding: 8px;
+    text-align: center;
+    background-color: var(--sage-green-light);
+    border-radius: 4px;
+}
+
+.meal-plan-time {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--gray-200);
+    position: sticky;
+    left: 0;
+    z-index: 2;
+}
+
+.meal-plan-cell {
+    padding: 8px;
+    min-height: 80px;
+    border: 1px solid var(--gray-300);
+    border-radius: 4px;
+    position: relative;
+    background-color: white;
+}
+
+.meal-plan-recipe {
+    background-color: var(--sage-green-light);
+    padding: 6px;
+    border-radius: 4px;
+    margin-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.meal-plan-recipe a {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex-grow: 1;
+    margin-right: 8px;
+}
+
+.meal-plan-empty {
+    color: var(--gray-500);
+    font-style: italic;
+    margin-bottom: 4px;
+}
+
+#meal-plan-modal.modal-open {
+    opacity: 1;
+}
+
+#meal-plan-modal.modal-open .card {
+    transform: translateY(0);
+}
+
+/* Fix for modal animation */
+#meal-plan-modal {
+    display: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+#meal-plan-modal .card {
+    transform: translateY(20px);
+    transition: transform 0.3s ease;
+}
+</style>
+{% endblock %}
