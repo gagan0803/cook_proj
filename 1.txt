@@ -1,0 +1,674 @@
+index.html
+
+
+{% extends "base.html" %}
+
+{% block title %}CookBookIt - Meal Plan{% endblock %}
+
+{% block content %}
+
+<div class="slide-in-up">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Your Meal Plan</h1>
+        <div>
+            <a href="{{ url_for('meal_plan.grocery_list') }}" class="btn btn-outline">Generate Grocery List</a>
+            {% if meal_plans|length > 0 %}
+            <a href="{{ url_for('meal_plan.generate_plan', plan_id=meal_plans[0].id) }}" class="btn btn-primary">Auto-Generate Plan</a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if meal_plans|length > 0 %}
+        {% set meal_plan = meal_plans[0] %}
+        <div class="card mb-4">
+            <div class="card-body">
+                <h2>Week of {{ meal_plan.week_start_date.strftime('%B %d, %Y') }}</h2>
+
+                <div class="meal-plan-scroll-container">
+                    <div class="meal-plan-grid mt-3">
+                        <!-- Headers -->
+                        <div class="meal-plan-corner"></div>
+                        <div class="meal-plan-header">Mon</div>
+                        <div class="meal-plan-header">Tue</div>
+                        <div class="meal-plan-header">Wed</div>
+                        <div class="meal-plan-header">Thu</div>
+                        <div class="meal-plan-header">Fri</div>
+                        <div class="meal-plan-header">Sat</div>
+                        <div class="meal-plan-header">Sun</div>
+
+                        <!-- Breakfast row -->
+                        <div class="meal-plan-time">Breakfast</div>
+                        {% for day in range(7) %}
+                            <div class="meal-plan-cell" data-day="{{ day }}" data-meal-type="breakfast">
+                                {% set ns = namespace(has_meal=false) %}
+                                {% for item in meal_plan.items %}
+                                    {% if item.day_of_week == day and item.meal_type == 'breakfast' %}
+                                        {% set ns.has_meal = true %}
+                                        <div class="meal-plan-recipe">
+                                            <a href="{{ url_for('recipe.detail', recipe_id=item.recipe._id) }}">{{ item.recipe.name }}</a>
+                                            <form method="POST" action="{{ url_for('meal_plan.remove_recipe', item_id=item.id) }}" style="display: inline;">
+                                                <button type="submit" class="btn btn-sm btn-danger" style="padding: 0.1rem 0.3rem; font-size: 0.7rem;">×</button>
+                                            </form>
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+
+                                {% if not ns.has_meal %}
+                                    <div class="meal-plan-empty">No meal planned</div>
+                                    <button type="button" class="btn btn-sm btn-outline add-recipe-btn" data-day="{{ day }}" data-meal-type="breakfast">Add</button>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+
+                        <!-- Lunch row -->
+                        <div class="meal-plan-time">Lunch</div>
+                        {% for day in range(7) %}
+                            <div class="meal-plan-cell" data-day="{{ day }}" data-meal-type="lunch">
+                                {% set ns = namespace(has_meal=false) %}
+                                {% for item in meal_plan.items %}
+                                    {% if item.day_of_week == day and item.meal_type == 'lunch' %}
+                                        {% set ns.has_meal = true %}
+                                        <div class="meal-plan-recipe">
+                                            <a href="{{ url_for('recipe.detail', recipe_id=item.recipe._id) }}">{{ item.recipe.name }}</a>
+                                            <form method="POST" action="{{ url_for('meal_plan.remove_recipe', item_id=item.id) }}" style="display: inline;">
+                                                <button type="submit" class="btn btn-sm btn-danger" style="padding: 0.1rem 0.3rem; font-size: 0.7rem;">×</button>
+                                            </form>
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+
+                                {% if not ns.has_meal %}
+                                    <div class="meal-plan-empty">No meal planned</div>
+                                    <button type="button" class="btn btn-sm btn-outline add-recipe-btn" data-day="{{ day }}" data-meal-type="lunch">Add</button>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+
+                        <!-- Dinner row -->
+                        <div class="meal-plan-time">Dinner</div>
+                        {% for day in range(7) %}
+                            <div class="meal-plan-cell" data-day="{{ day }}" data-meal-type="dinner">
+                                {% set ns = namespace(has_meal=false) %}
+                                {% for item in meal_plan.items %}
+                                    {% if item.day_of_week == day and item.meal_type == 'dinner' %}
+                                        {% set ns.has_meal = true %}
+                                        <div class="meal-plan-recipe">
+                                            <a href="{{ url_for('recipe.detail', recipe_id=item.recipe._id) }}">{{ item.recipe.name }}</a>
+                                            <form method="POST" action="{{ url_for('meal_plan.remove_recipe', item_id=item.id) }}" style="display: inline;">
+                                                <button type="submit" class="btn btn-sm btn-danger" style="padding: 0.1rem 0.3rem; font-size: 0.7rem;">×</button>
+                                            </form>
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+
+                                {% if not ns.has_meal %}
+                                    <div class="meal-plan-empty">No meal planned</div>
+                                    <button type="button" class="btn btn-sm btn-outline add-recipe-btn" data-day="{{ day }}" data-meal-type="dinner">Add</button>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="alert alert-info">
+            <h4>No meal plan found for this week</h4>
+            <p>Create a new meal plan to get started.</p>
+        </div>
+    {% endif %}
+
+    <!-- Add Recipe Modal -->
+    <div id="meal-plan-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="card">
+                <div class="card-body">
+                    <h2>Add Recipe to Meal Plan</h2>
+
+                    <form id="add-recipe-form" method="POST" action="{{ url_for('meal_plan.add_recipe') }}">
+                        {% if meal_plans|length > 0 %}
+                            <input type="hidden" name="plan_id" value="{{ meal_plans[0].id }}">
+                        {% endif %}
+                        <input type="hidden" id="day_of_week" name="day_of_week" value="0">
+                        <input type="hidden" id="meal_type" name="meal_type" value="breakfast">
+
+                        <div class="form-group">
+                            <label for="recipe_id" class="form-label">Select Recipe</label>
+                            <select id="recipe_id" name="recipe_id" class="form-select" required>
+                                <option value="">-- Select a Recipe --</option>
+                                {% for recipe in recipe_suggestions %}
+                                    <option value="{{ recipe._id }}">{{ recipe.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <button type="button" id="close-meal-plan-modal" class="btn btn-outline">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Add to Meal Plan</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Modal Styles */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.modal-overlay.show {
+    display: flex;
+    opacity: 1;
+}
+
+.modal-content {
+    width: 100%;
+    max-width: 500px;
+    margin: 20px;
+    transform: translateY(20px);
+    transition: transform 0.3s ease;
+}
+
+.modal-overlay.show .modal-content {
+    transform: translateY(0);
+}
+
+/* Meal Plan Grid Styles */
+.meal-plan-scroll-container {
+    overflow-x: auto;
+    margin: 0 -15px;
+    padding: 0 15px;
+}
+
+.meal-plan-grid {
+    display: grid;
+    grid-template-columns: 100px repeat(7, 1fr);
+    grid-gap: 1px;
+    background-color: #ddd;
+    border: 1px solid #ddd;
+    min-width: 800px;
+}
+
+.meal-plan-corner,
+.meal-plan-header,
+.meal-plan-time,
+.meal-plan-cell {
+    background-color: white;
+    padding: 10px;
+    min-height: 80px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.meal-plan-corner {
+    background-color: #f8f9fa;
+}
+
+.meal-plan-header {
+    background-color: #f8f9fa;
+    font-weight: bold;
+    text-align: center;
+}
+
+.meal-plan-time {
+    background-color: #f8f9fa;
+    font-weight: bold;
+    writing-mode: horizontal-tb;
+    text-align: center;
+}
+
+.meal-plan-cell {
+    position: relative;
+    text-align: center;
+}
+
+.meal-plan-recipe {
+    width: 100%;
+    margin-bottom: 5px;
+}
+
+.meal-plan-recipe a {
+    display: block;
+    margin-bottom: 5px;
+    text-decoration: none;
+    color: #007bff;
+    font-size: 0.9rem;
+}
+
+.meal-plan-recipe a:hover {
+    text-decoration: underline;
+}
+
+.meal-plan-empty {
+    color: #6c757d;
+    font-style: italic;
+    margin-bottom: 10px;
+    font-size: 0.8rem;
+}
+
+.add-recipe-btn {
+    font-size: 0.8rem;
+    padding: 0.25rem 0.5rem;
+}
+
+/* Form Styles */
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+}
+
+.form-select {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+}
+
+.form-select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+/* Button Styles */
+.btn {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 4px;
+    text-decoration: none;
+    text-align: center;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.btn-primary {
+    background-color: #007bff;
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: #0056b3;
+}
+
+.btn-outline {
+    background-color: transparent;
+    color: #007bff;
+    border: 1px solid #007bff;
+}
+
+.btn-outline:hover {
+    background-color: #007bff;
+    color: white;
+}
+
+.btn-danger {
+    background-color: #dc3545;
+    color: white;
+}
+
+.btn-danger:hover {
+    background-color: #c82333;
+}
+
+.btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .meal-plan-grid {
+        min-width: 600px;
+    }
+    
+    .meal-plan-corner,
+    .meal-plan-header,
+    .meal-plan-time,
+    .meal-plan-cell {
+        padding: 8px;
+        min-height: 60px;
+        font-size: 0.8rem;
+    }
+}
+</style>
+
+{% endblock %}
+
+
+----------------------------------------------------------------
+
+
+main.js
+
+
+document.addEventListener('DOMContentLoaded', function () {
+  // Expiration warning animation
+  const expirationWarnings = document.querySelectorAll('.expiration-warning');
+  if (expirationWarnings.length > 0) {
+    setTimeout(() => {
+      expirationWarnings.forEach(warning => warning.classList.add('fade-in'));
+    }, 300);
+  }
+
+  // Match bar color and width
+  function initMatchBars() {
+    const matchBars = document.querySelectorAll('.match-bar');
+    matchBars.forEach(bar => {
+      const percentage = parseFloat(bar.getAttribute('data-percentage')) || 0;
+      const progressBar = bar.querySelector('.match-progress');
+      setTimeout(() => {
+        progressBar.style.width = `${percentage}%`;
+        if (percentage >= 80) {
+          progressBar.style.backgroundColor = 'var(--success)';
+        } else if (percentage >= 50) {
+          progressBar.style.backgroundColor = 'var(--sage-green)';
+        } else if (percentage >= 30) {
+          progressBar.style.backgroundColor = 'var(--warning)';
+        } else {
+          progressBar.style.backgroundColor = 'var(--terracotta)';
+        }
+      }, 100);
+    });
+  }
+
+  initMatchBars();
+
+  // Quantity validation
+  const quantityInput = document.getElementById('quantity');
+  if (quantityInput) {
+    quantityInput.addEventListener('input', function () {
+      if (parseFloat(this.value) <= 0) {
+        this.setCustomValidity('Quantity must be greater than 0');
+      } else {
+        this.setCustomValidity('');
+      }
+    });
+  }
+
+  // Filter toggle
+  const filterToggle = document.getElementById('filter-toggle');
+  const filterForm = document.getElementById('filter-form');
+  if (filterToggle && filterForm) {
+    filterToggle.addEventListener('click', function () {
+      filterForm.classList.toggle('d-none');
+      filterForm.classList.toggle('slide-in-up');
+      filterToggle.textContent = filterForm.classList.contains('d-none') ? 'Show Filters' : 'Hide Filters';
+    });
+
+    if (!filterForm.classList.contains('d-none')) {
+      filterToggle.textContent = 'Hide Filters';
+    }
+  }
+
+  // Complete recipe modal
+  const completeRecipeBtn = document.getElementById('complete-recipe-btn');
+  const completeModal = document.getElementById('complete-modal');
+  const closeModalBtn = document.getElementById('close-modal');
+
+  if (completeRecipeBtn && completeModal) {
+    completeRecipeBtn.addEventListener('click', function () {
+      completeModal.style.display = 'flex';
+      setTimeout(() => completeModal.classList.add('modal-open'), 10);
+    });
+
+    if (closeModalBtn) {
+      closeModalBtn.addEventListener('click', closeCompleteModal);
+    }
+
+    window.addEventListener('click', function (event) {
+      if (event.target === completeModal) {
+        closeCompleteModal();
+      }
+    });
+
+    function closeCompleteModal() {
+      completeModal.classList.remove('modal-open');
+      setTimeout(() => (completeModal.style.display = 'none'), 300);
+    }
+  }
+
+  // Meal plan modal (Add button) - FIXED VERSION
+  const mealPlanModal = document.getElementById('meal-plan-modal');
+  const closeMealPlanModalBtn = document.getElementById('close-meal-plan-modal');
+  const addRecipeForm = document.getElementById('add-recipe-form');
+
+  if (mealPlanModal && addRecipeForm) {
+    // Event delegation for dynamically added buttons
+    document.addEventListener('click', function (event) {
+      // Handle Add Recipe button clicks
+      if (event.target && event.target.classList.contains('add-recipe-btn')) {
+        console.log('Add recipe button clicked'); // Debug log
+        
+        const day = event.target.getAttribute('data-day');
+        const mealType = event.target.getAttribute('data-meal-type');
+        
+        console.log('Day:', day, 'Meal Type:', mealType); // Debug log
+        
+        // Set hidden form fields
+        const dayInput = document.getElementById('day_of_week');
+        const mealTypeInput = document.getElementById('meal_type');
+        
+        if (dayInput && mealTypeInput) {
+          dayInput.value = day;
+          mealTypeInput.value = mealType;
+        }
+
+        // Show modal
+        showMealPlanModal();
+        
+        // Prevent event bubbling
+        event.preventDefault();
+        event.stopPropagation();
+        return false;
+      }
+
+      // Handle modal background clicks
+      if (event.target === mealPlanModal) {
+        closeMealPlanModal();
+      }
+    });
+
+    // Close button event listener
+    if (closeMealPlanModalBtn) {
+      closeMealPlanModalBtn.addEventListener('click', function(event) {
+        event.preventDefault();
+        closeMealPlanModal();
+      });
+    }
+
+    // Function to show modal
+    function showMealPlanModal() {
+      console.log('Showing meal plan modal'); // Debug log
+      mealPlanModal.style.display = 'flex';
+      // Force reflow
+      mealPlanModal.offsetHeight;
+      mealPlanModal.classList.add('show');
+    }
+
+    // Function to close modal
+    function closeMealPlanModal() {
+      console.log('Closing meal plan modal'); // Debug log
+      mealPlanModal.classList.remove('show');
+      setTimeout(() => {
+        mealPlanModal.style.display = 'none';
+      }, 300);
+    }
+
+    // Form submission handling
+    addRecipeForm.addEventListener('submit', function (event) {
+      const recipeSelect = document.getElementById('recipe_id');
+      if (!recipeSelect.value) {
+        event.preventDefault();
+        alert('Please select a recipe before adding to meal plan.');
+        return false;
+      }
+
+      // Hide placeholder and add button on submit
+      const day = document.getElementById('day_of_week').value;
+      const mealType = document.getElementById('meal_type').value;
+      const cell = document.querySelector(`.meal-plan-cell[data-day="${day}"][data-meal-type="${mealType}"]`);
+      
+      if (cell) {
+        const placeholder = cell.querySelector('.meal-plan-empty');
+        const addBtn = cell.querySelector('.add-recipe-btn');
+        if (placeholder) placeholder.style.display = 'none';
+        if (addBtn) addBtn.style.display = 'none';
+      }
+
+      // Close modal
+      closeMealPlanModal();
+    });
+  }
+
+  // Inventory filters
+  const categoryFilters = document.querySelectorAll('.category-filter');
+  const inventoryItems = document.querySelectorAll('.inventory-item');
+  if (categoryFilters.length > 0 && inventoryItems.length > 0) {
+    categoryFilters.forEach(filter => {
+      filter.addEventListener('click', function () {
+        const category = this.getAttribute('data-category');
+        categoryFilters.forEach(f => f.classList.remove('active'));
+        this.classList.add('active');
+
+        inventoryItems.forEach(item => {
+          item.style.display = category === 'all' || item.getAttribute('data-category') === category ? 'block' : 'none';
+        });
+      });
+    });
+  }
+
+  // Mobile nav toggle
+  const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+  const mobileMenu = document.getElementById('mobile-menu');
+  if (mobileMenuToggle && mobileMenu) {
+    mobileMenuToggle.addEventListener('click', function () {
+      mobileMenu.classList.toggle('show');
+      mobileMenuToggle.classList.toggle('open');
+    });
+  }
+
+  // Ingredient autocomplete
+  const ingredientInput = document.getElementById('ingredient-name-input');
+  const suggestionsContainer = document.getElementById('ingredient-suggestions');
+  const unitSelect = document.getElementById('unit-select');
+
+  if (ingredientInput && suggestionsContainer && unitSelect) {
+    let ingredientData = [];
+
+    async function fetchIngredients(searchTerm) {
+      try {
+        const response = await fetch(`/inventory/api/ingredients?term=${searchTerm}`);
+        const data = await response.json();
+        return data.ingredients;
+      } catch (err) {
+        console.error('Ingredient fetch failed:', err);
+        return [];
+      }
+    }
+
+    function debounce(func, delay) {
+      let timeout;
+      return function (...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), delay);
+      };
+    }
+
+    const handleInputChange = debounce(async function () {
+      const searchTerm = ingredientInput.value.trim().toLowerCase();
+      if (searchTerm.length < 2) {
+        suggestionsContainer.innerHTML = '';
+        suggestionsContainer.style.display = 'none';
+        return;
+      }
+
+      ingredientData = await fetchIngredients(searchTerm);
+      if (ingredientData.length === 0) {
+        suggestionsContainer.innerHTML = '';
+        suggestionsContainer.style.display = 'none';
+        return;
+      }
+
+      suggestionsContainer.innerHTML = '';
+      ingredientData.forEach(ingredient => {
+        const item = document.createElement('div');
+        item.className = 'suggestion-item';
+        item.textContent = ingredient.name;
+        item.addEventListener('click', () => selectIngredient(ingredient));
+        suggestionsContainer.appendChild(item);
+      });
+      suggestionsContainer.style.display = 'block';
+    }, 300);
+
+    function selectIngredient(ingredient) {
+      ingredientInput.value = ingredient.name;
+      if (ingredient.unit) {
+        for (let i = 0; i < unitSelect.options.length; i++) {
+          if (unitSelect.options[i].value === ingredient.unit) {
+            unitSelect.selectedIndex = i;
+            break;
+          }
+        }
+      }
+      suggestionsContainer.innerHTML = '';
+      suggestionsContainer.style.display = 'none';
+    }
+
+    ingredientInput.addEventListener('input', handleInputChange);
+    document.addEventListener('click', event => {
+      if (event.target !== ingredientInput && event.target !== suggestionsContainer) {
+        suggestionsContainer.style.display = 'none';
+      }
+    });
+  }
+});
+
+// For dynamic recipe updates
+function updateRecipeResults(recipes) {
+  const resultsContainer = document.getElementById('recipe-results');
+  if (!resultsContainer) return;
+
+  if (recipes.length === 0) {
+    resultsContainer.innerHTML = '<p class="text-center">No recipes found matching your criteria.</p>';
+    return;
+  }
+
+  let html = '';
+  recipes.forEach(recipe => {
+    html += `
+      <div class="recipe-card card">
+        <img src="/static/images/recipes/${recipe._id}.jpg" onerror="this.src='/static/images/placeholder.jpg'" alt="${recipe.name}" class="card-img">
+        <div class="card-body">
+          <h3 class="card-title">${recipe.name}</h3>
+          <p class="card-text"><strong>Match:</strong> ${recipe.matchPercent}%</p>
+          <a href="/recipes/${recipe._id}" class="btn btn-primary">View Recipe</a>
+        </div>
+      </div>
+    `;
+  });
+  resultsContainer.innerHTML = html;
+}
