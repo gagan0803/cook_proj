@@ -1,0 +1,3407 @@
+{% extends "base.html" %}
+
+
+ 
+
+{% block title %}CookBookIt - Meal Plan{% endblock %}
+
+
+ 
+
+{% block content %}
+
+
+ 
+
+<div class="slide-in-up">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <h1>Your Meal Plan</h1>
+
+        <div>
+
+            <a href="{{ url_for('meal_plan.grocery_list') }}" class="btn btn-outline">Generate Grocery List</a>
+
+            {% if meal_plans|length > 0 %}
+
+            <a href="{{ url_for('meal_plan.generate_plan', plan_id=meal_plans[0].id) }}" class="btn btn-primary">Auto-Generate Plan</a>
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+
+ 
+
+    {% if meal_plans|length > 0 %}
+
+        {% set meal_plan = meal_plans[0] %}
+
+        <div class="card mb-4">
+
+            <div class="card-body">
+
+                <h2>Week of {{ meal_plan.week_start_date.strftime('%B %d, %Y') }}</h2>
+
+
+ 
+
+                <div class="meal-plan-scroll-container">
+
+                    <div class="meal-plan-grid mt-3">
+
+                        <!-- Headers -->
+
+                        <div class="meal-plan-corner"></div>
+
+                        <div class="meal-plan-header">Mon</div>
+
+                        <div class="meal-plan-header">Tue</div>
+
+                        <div class="meal-plan-header">Wed</div>
+
+                        <div class="meal-plan-header">Thu</div>
+
+                        <div class="meal-plan-header">Fri</div>
+
+                        <div class="meal-plan-header">Sat</div>
+
+                        <div class="meal-plan-header">Sun</div>
+
+
+ 
+
+                        <!-- Breakfast row -->
+
+                        <div class="meal-plan-time">Breakfast</div>
+
+                        {% for day in range(7) %}
+
+                            <div class="meal-plan-cell" data-day="{{ day }}" data-meal-type="breakfast">
+
+                                {% set ns = namespace(has_meal=false) %}
+
+                                {% for item in meal_plan.items %}
+
+                                    {% if item.day_of_week == day and item.meal_type == 'breakfast' %}
+
+                                        {% set ns.has_meal = true %}
+
+                                        <div class="meal-plan-recipe">
+
+                                            <a href="{{ url_for('recipe.detail', recipe_id=item.recipe._id) }}">{{ item.recipe.name }}</a>
+
+                                            <form method="POST" action="{{ url_for('meal_plan.remove_recipe', item_id=item.id) }}" style="display: inline;">
+
+                                                <button type="submit" class="btn btn-sm btn-danger" style="padding: 0.1rem 0.3rem; font-size: 0.7rem;">×</button>
+
+                                            </form>
+
+                                        </div>
+
+                                    {% endif %}
+
+                                {% endfor %}
+
+
+ 
+
+                                {% if not ns.has_meal %}
+
+                                    <div class="meal-plan-empty">No meal planned</div>
+
+                                    <button class="btn btn-sm btn-outline add-recipe-btn" data-day="{{ day }}" data-meal-type="breakfast">Add</button>
+
+                                {% endif %}
+
+                            </div>
+
+                        {% endfor %}
+
+
+ 
+
+                        <!-- Lunch row -->
+
+                        <div class="meal-plan-time">Lunch</div>
+
+                        {% for day in range(7) %}
+
+                            <div class="meal-plan-cell" data-day="{{ day }}" data-meal-type="lunch">
+
+                                {% set ns = namespace(has_meal=false) %}
+
+                                {% for item in meal_plan.items %}
+
+                                    {% if item.day_of_week == day and item.meal_type == 'lunch' %}
+
+                                        {% set ns.has_meal = true %}
+
+                                        <div class="meal-plan-recipe">
+
+                                            <a href="{{ url_for('recipe.detail', recipe_id=item.recipe._id) }}">{{ item.recipe.name }}</a>
+
+                                            <form method="POST" action="{{ url_for('meal_plan.remove_recipe', item_id=item.id) }}" style="display: inline;">
+
+                                                <button type="submit" class="btn btn-sm btn-danger" style="padding: 0.1rem 0.3rem; font-size: 0.7rem;">×</button>
+
+                                            </form>
+
+                                        </div>
+
+                                    {% endif %}
+
+                                {% endfor %}
+
+
+ 
+
+                                {% if not ns.has_meal %}
+
+                                    <div class="meal-plan-empty">No meal planned</div>
+
+                                    <button class="btn btn-sm btn-outline add-recipe-btn" data-day="{{ day }}" data-meal-type="lunch">Add</button>
+
+                                {% endif %}
+
+                            </div>
+
+                        {% endfor %}
+
+
+ 
+
+                        <!-- Dinner row -->
+
+                        <div class="meal-plan-time">Dinner</div>
+
+                        {% for day in range(7) %}
+
+                            <div class="meal-plan-cell" data-day="{{ day }}" data-meal-type="dinner">
+
+                                {% set ns = namespace(has_meal=false) %}
+
+                                {% for item in meal_plan.items %}
+
+                                    {% if item.day_of_week == day and item.meal_type == 'dinner' %}
+
+                                        {% set ns.has_meal = true %}
+
+                                        <div class="meal-plan-recipe">
+
+                                            <a href="{{ url_for('recipe.detail', recipe_id=item.recipe._id) }}">{{ item.recipe.name }}</a>
+
+                                            <form method="POST" action="{{ url_for('meal_plan.remove_recipe', item_id=item.id) }}" style="display: inline;">
+
+                                                <button type="submit" class="btn btn-sm btn-danger" style="padding: 0.1rem 0.3rem; font-size: 0.7rem;">×</button>
+
+                                            </form>
+
+                                        </div>
+
+                                    {% endif %}
+
+                                {% endfor %}
+
+
+ 
+
+                                {% if not ns.has_meal %}
+
+                                    <div class="meal-plan-empty">No meal planned</div>
+
+                                    <button class="btn btn-sm btn-outline add-recipe-btn" data-day="{{ day }}" data-meal-type="dinner">Add</button>
+
+                                {% endif %}
+
+                            </div>
+
+                        {% endfor %}
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    {% else %}
+
+        <div class="alert alert-info">
+
+            <h4>No meal plan found for this week</h4>
+
+            <p>Create a new meal plan to get started.</p>
+
+        </div>
+
+    {% endif %}
+
+
+ 
+
+    <!-- Add Recipe Modal -->
+
+    <div id="meal-plan-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.3s;">
+
+        <div class="card" style="width: 100%; max-width: 500px; transform: translateY(20px); transition: transform 0.3s;">
+
+            <div class="card-body">
+
+                <h2>Add Recipe to Meal Plan</h2>
+
+
+ 
+
+                <form id="add-recipe-form" method="POST" action="{{ url_for('meal_plan.add_recipe') }}">
+
+                    {% if meal_plans|length > 0 %}
+
+                        <input type="hidden" name="plan_id" value="{{ meal_plans[0].id }}">
+
+                    {% endif %}
+
+                    <input type="hidden" id="day_of_week" name="day_of_week" value="0">
+
+                    <input type="hidden" id="meal_type" name="meal_type" value="breakfast">
+
+
+ 
+
+                    <div class="form-group">
+
+                        <label for="recipe_id" class="form-label">Select Recipe</label>
+
+                        <select id="recipe_id" name="recipe_id" class="form-select">
+
+                            {% for recipe in recipe_suggestions %}
+
+                                <option value="{{ recipe._id }}">{{ recipe.name }}</option>
+
+                            {% endfor %}
+
+                        </select>
+
+                    </div>
+
+
+ 
+
+                    <div class="d-flex justify-content-between mt-4">
+
+                        <button type="button" id="close-meal-plan-modal" class="btn btn-outline">Cancel</button>
+
+                        <button type="submit" class="btn btn-primary">Add to Meal Plan</button>
+
+                    </div>
+
+                </form>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+ 
+
+{% endblock %}
+
+--------------------------------------------------
+
+document.addEventListener('DOMContentLoaded', function () {
+
+  // Expiration warning animation
+
+  const expirationWarnings = document.querySelectorAll('.expiration-warning');
+
+  if (expirationWarnings.length > 0) {
+
+    setTimeout(() => {
+
+      expirationWarnings.forEach(warning => warning.classList.add('fade-in'));
+
+    }, 300);
+
+  }
+
+
+ 
+
+  // Match bar color and width
+
+  function initMatchBars() {
+
+    const matchBars = document.querySelectorAll('.match-bar');
+
+    matchBars.forEach(bar => {
+
+      const percentage = parseFloat(bar.getAttribute('data-percentage')) || 0;
+
+      const progressBar = bar.querySelector('.match-progress');
+
+      setTimeout(() => {
+
+        progressBar.style.width = `${percentage}%`;
+
+        if (percentage >= 80) {
+
+          progressBar.style.backgroundColor = 'var(--success)';
+
+        } else if (percentage >= 50) {
+
+          progressBar.style.backgroundColor = 'var(--sage-green)';
+
+        } else if (percentage >= 30) {
+
+          progressBar.style.backgroundColor = 'var(--warning)';
+
+        } else {
+
+          progressBar.style.backgroundColor = 'var(--terracotta)';
+
+        }
+
+      }, 100);
+
+    });
+
+  }
+
+
+ 
+
+  initMatchBars();
+
+
+ 
+
+  // Quantity validation
+
+  const quantityInput = document.getElementById('quantity');
+
+  if (quantityInput) {
+
+    quantityInput.addEventListener('input', function () {
+
+      if (parseFloat(this.value) <= 0) {
+
+        this.setCustomValidity('Quantity must be greater than 0');
+
+      } else {
+
+        this.setCustomValidity('');
+
+      }
+
+    });
+
+  }
+
+
+ 
+
+  // Filter toggle
+
+  const filterToggle = document.getElementById('filter-toggle');
+
+  const filterForm = document.getElementById('filter-form');
+
+  if (filterToggle && filterForm) {
+
+    filterToggle.addEventListener('click', function () {
+
+      filterForm.classList.toggle('d-none');
+
+      filterForm.classList.toggle('slide-in-up');
+
+      filterToggle.textContent = filterForm.classList.contains('d-none') ? 'Show Filters' : 'Hide Filters';
+
+    });
+
+
+ 
+
+    if (!filterForm.classList.contains('d-none')) {
+
+      filterToggle.textContent = 'Hide Filters';
+
+    }
+
+  }
+
+
+ 
+
+  // Complete recipe modal
+
+  const completeRecipeBtn = document.getElementById('complete-recipe-btn');
+
+  const completeModal = document.getElementById('complete-modal');
+
+  const closeModalBtn = document.getElementById('close-modal');
+
+
+ 
+
+  if (completeRecipeBtn && completeModal) {
+
+    completeRecipeBtn.addEventListener('click', function () {
+
+      completeModal.style.display = 'flex';
+
+      setTimeout(() => completeModal.classList.add('modal-open'), 10);
+
+    });
+
+
+ 
+
+    if (closeModalBtn) {
+
+      closeModalBtn.addEventListener('click', closeCompleteModal);
+
+    }
+
+
+ 
+
+    window.addEventListener('click', function (event) {
+
+      if (event.target === completeModal) {
+
+        closeCompleteModal();
+
+      }
+
+    });
+
+
+ 
+
+    function closeCompleteModal() {
+
+      completeModal.classList.remove('modal-open');
+
+      setTimeout(() => (completeModal.style.display = 'none'), 300);
+
+    }
+
+  }
+
+
+ 
+
+  // Meal plan modal (Add button)
+
+  const mealPlanModal = document.getElementById('meal-plan-modal');
+
+  const closeMealPlanModalBtn = document.getElementById('close-meal-plan-modal');
+
+  const addRecipeForm = document.getElementById('add-recipe-form');
+
+
+ 
+
+  if (mealPlanModal && addRecipeForm) {
+
+    document.addEventListener('click', function (event) {
+
+      if (event.target.classList.contains('add-recipe-btn')) {
+
+        const day = event.target.getAttribute('data-day');
+
+        const mealType = event.target.getAttribute('data-meal-type');
+
+        document.getElementById('day_of_week').value = day;
+
+        document.getElementById('meal_type').value = mealType;
+
+
+ 
+
+        // Show modal
+
+        mealPlanModal.style.display = 'flex';
+
+        setTimeout(() => {
+
+          mealPlanModal.classList.add('modal-open');
+
+        }, 10);
+
+      }
+
+
+ 
+
+      if (event.target === mealPlanModal) {
+
+        closeMealPlanModal();
+
+      }
+
+    });
+
+
+ 
+
+    if (closeMealPlanModalBtn) {
+
+      closeMealPlanModalBtn.addEventListener('click', closeMealPlanModal);
+
+    }
+
+
+ 
+
+    function closeMealPlanModal() {
+
+      mealPlanModal.classList.remove('modal-open');
+
+      setTimeout(() => (mealPlanModal.style.display = 'none'), 300);
+
+    }
+
+
+ 
+
+    // Hide placeholder and add button on submit
+
+    addRecipeForm.addEventListener('submit', function () {
+
+      const day = document.getElementById('day_of_week').value;
+
+      const mealType = document.getElementById('meal_type').value;
+
+      const cell = document.querySelector(`.meal-plan-cell[data-day="${day}"][data-meal-type="${mealType}"]`);
+
+      if (cell) {
+
+        const placeholder = cell.querySelector('.meal-plan-empty');
+
+        const addBtn = cell.querySelector('.add-recipe-btn');
+
+        if (placeholder) placeholder.style.display = 'none';
+
+        if (addBtn) addBtn.style.display = 'none';
+
+      }
+
+    });
+
+  }
+
+
+ 
+
+  // Inventory filters
+
+  const categoryFilters = document.querySelectorAll('.category-filter');
+
+  const inventoryItems = document.querySelectorAll('.inventory-item');
+
+  if (categoryFilters.length > 0 && inventoryItems.length > 0) {
+
+    categoryFilters.forEach(filter => {
+
+      filter.addEventListener('click', function () {
+
+        const category = this.getAttribute('data-category');
+
+        categoryFilters.forEach(f => f.classList.remove('active'));
+
+        this.classList.add('active');
+
+
+ 
+
+        inventoryItems.forEach(item => {
+
+          item.style.display = category === 'all' || item.getAttribute('data-category') === category ? 'block' : 'none';
+
+        });
+
+      });
+
+    });
+
+  }
+
+
+ 
+
+  // Mobile nav toggle
+
+  const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+
+  const mobileMenu = document.getElementById('mobile-menu');
+
+  if (mobileMenuToggle && mobileMenu) {
+
+    mobileMenuToggle.addEventListener('click', function () {
+
+      mobileMenu.classList.toggle('show');
+
+      mobileMenuToggle.classList.toggle('open');
+
+    });
+
+  }
+
+
+ 
+
+  // Ingredient autocomplete
+
+  const ingredientInput = document.getElementById('ingredient-name-input');
+
+  const suggestionsContainer = document.getElementById('ingredient-suggestions');
+
+  const unitSelect = document.getElementById('unit-select');
+
+
+ 
+
+  if (ingredientInput && suggestionsContainer && unitSelect) {
+
+    let ingredientData = [];
+
+
+ 
+
+    async function fetchIngredients(searchTerm) {
+
+      try {
+
+        const response = await fetch(`/inventory/api/ingredients?term=${searchTerm}`);
+
+        const data = await response.json();
+
+        return data.ingredients;
+
+      } catch (err) {
+
+        console.error('Ingredient fetch failed:', err);
+
+        return [];
+
+      }
+
+    }
+
+
+ 
+
+    function debounce(func, delay) {
+
+      let timeout;
+
+      return function (...args) {
+
+        clearTimeout(timeout);
+
+        timeout = setTimeout(() => func.apply(this, args), delay);
+
+      };
+
+    }
+
+
+ 
+
+    const handleInputChange = debounce(async function () {
+
+      const searchTerm = ingredientInput.value.trim().toLowerCase();
+
+      if (searchTerm.length < 2) {
+
+        suggestionsContainer.innerHTML = '';
+
+        suggestionsContainer.style.display = 'none';
+
+        return;
+
+      }
+
+
+ 
+
+      ingredientData = await fetchIngredients(searchTerm);
+
+      if (ingredientData.length === 0) {
+
+        suggestionsContainer.innerHTML = '';
+
+        suggestionsContainer.style.display = 'none';
+
+        return;
+
+      }
+
+
+ 
+
+      suggestionsContainer.innerHTML = '';
+
+      ingredientData.forEach(ingredient => {
+
+        const item = document.createElement('div');
+
+        item.className = 'suggestion-item';
+
+        item.textContent = ingredient.name;
+
+        item.addEventListener('click', () => selectIngredient(ingredient));
+
+        suggestionsContainer.appendChild(item);
+
+      });
+
+      suggestionsContainer.style.display = 'block';
+
+    }, 300);
+
+
+ 
+
+    function selectIngredient(ingredient) {
+
+      ingredientInput.value = ingredient.name;
+
+      if (ingredient.unit) {
+
+        for (let i = 0; i < unitSelect.options.length; i++) {
+
+          if (unitSelect.options[i].value === ingredient.unit) {
+
+            unitSelect.selectedIndex = i;
+
+            break;
+
+          }
+
+        }
+
+      }
+
+      suggestionsContainer.innerHTML = '';
+
+      suggestionsContainer.style.display = 'none';
+
+    }
+
+
+ 
+
+    ingredientInput.addEventListener('input', handleInputChange);
+
+    document.addEventListener('click', event => {
+
+      if (event.target !== ingredientInput && event.target !== suggestionsContainer) {
+
+        suggestionsContainer.style.display = 'none';
+
+      }
+
+    });
+
+  }
+
+});
+
+
+ 
+
+// For dynamic recipe updates
+
+function updateRecipeResults(recipes) {
+
+  const resultsContainer = document.getElementById('recipe-results');
+
+  if (!resultsContainer) return;
+
+
+ 
+
+  if (recipes.length === 0) {
+
+    resultsContainer.innerHTML = '<p class="text-center">No recipes found matching your criteria.</p>';
+
+    return;
+
+  }
+
+
+ 
+
+  let html = '';
+
+  recipes.forEach(recipe => {
+
+    html += `
+
+      <div class="recipe-card card">
+
+        <img src="/static/images/recipes/${recipe._id}.jpg" onerror="this.src='/static/images/placeholder.jpg'" alt="${recipe.name}" class="card-img">
+
+        <div class="card-body">
+
+          <h3 class="card-title">${recipe.name}</h3>
+
+          <p class="card-text"><strong>Match:</strong> ${recipe.matchPercent}%</p>
+
+          <a href="/recipes/${recipe._id}" class="btn btn-primary">View Recipe</a>
+
+        </div>
+
+      </div>
+
+    `;
+
+  });
+
+  resultsContainer.innerHTML = html;
+
+}
+
+------------------------------------------------------------
+
+from database.mysql_setup import get_connection
+
+from models.recipe import Recipe
+
+
+ 
+
+class MealPlan:
+
+    def __init__(self, id, user_id, week_start_date, created_at=None):
+
+        self.id = id
+
+        self.user_id = user_id
+
+        self.week_start_date = week_start_date
+
+        self.created_at = created_at
+
+        self.items = []
+
+   
+
+    @staticmethod
+
+    def get_by_user(user_id, week_start_date=None):
+
+        conn = get_connection()
+
+        cursor = conn.cursor(dictionary=True)
+
+       
+
+        if week_start_date:
+
+            cursor.execute(
+
+                "SELECT * FROM meal_plans WHERE user_id = %s AND week_start_date = %s",
+
+                (user_id, week_start_date)
+
+            )
+
+        else:
+
+            cursor.execute(
+
+                "SELECT * FROM meal_plans WHERE user_id = %s ORDER BY week_start_date DESC",
+
+                (user_id,)
+
+            )
+
+       
+
+        meal_plans = []
+
+        for plan_data in cursor.fetchall():
+
+            plan = MealPlan(
+
+                id=plan_data['id'],
+
+                user_id=plan_data['user_id'],
+
+                week_start_date=plan_data['week_start_date'],
+
+                created_at=plan_data['created_at']
+
+            )
+
+           
+
+            # Get meal plan items
+
+            cursor.execute(
+
+                "SELECT * FROM meal_plan_items WHERE meal_plan_id = %s",
+
+                (plan.id,)
+
+            )
+
+           
+
+            for item_data in cursor.fetchall():
+
+                # Get recipe details
+
+                recipe = Recipe.get_by_id(item_data['recipe_id'])
+
+               
+
+                if recipe:
+
+                    plan.items.append({
+
+                        'id': item_data['id'],
+
+                        'day_of_week': item_data['day_of_week'],
+
+                        'meal_type': item_data['meal_type'],
+
+                        'recipe': recipe
+
+                    })
+
+           
+
+            meal_plans.append(plan)
+
+       
+
+        cursor.close()
+
+        return meal_plans
+
+   
+
+    @staticmethod
+
+    def get_by_id(plan_id):
+
+        conn = get_connection()
+
+        cursor = conn.cursor(dictionary=True)
+
+       
+
+        cursor.execute("SELECT * FROM meal_plans WHERE id = %s", (plan_id,))
+
+        plan_data = cursor.fetchone()
+
+       
+
+        if not plan_data:
+
+            cursor.close()
+
+            return None
+
+       
+
+        plan = MealPlan(
+
+            id=plan_data['id'],
+
+            user_id=plan_data['user_id'],
+
+            week_start_date=plan_data['week_start_date'],
+
+            created_at=plan_data['created_at']
+
+        )
+
+       
+
+        # Get meal plan items
+
+        cursor.execute(
+
+            "SELECT * FROM meal_plan_items WHERE meal_plan_id = %s",
+
+            (plan.id,)
+
+        )
+
+       
+
+        for item_data in cursor.fetchall():
+
+            # Get recipe details
+
+            recipe = Recipe.get_by_id(item_data['recipe_id'])
+
+           
+
+            if recipe:
+
+                plan.items.append({
+
+                    'id': item_data['id'],
+
+                    'day_of_week': item_data['day_of_week'],
+
+                    'meal_type': item_data['meal_type'],
+
+                    'recipe': recipe
+
+                })
+
+       
+
+        cursor.close()
+
+        return plan
+
+   
+
+    @staticmethod
+
+    def create(user_id, week_start_date):
+
+        conn = get_connection()
+
+        cursor = conn.cursor()
+
+       
+
+        try:
+
+            cursor.execute(
+
+                "INSERT INTO meal_plans (user_id, week_start_date) VALUES (%s, %s)",
+
+                (user_id, week_start_date)
+
+            )
+
+            conn.commit()
+
+            plan_id = cursor.lastrowid
+
+            cursor.close()
+
+           
+
+            return MealPlan.get_by_id(plan_id)
+
+        except Exception as e:
+
+            conn.rollback()
+
+            cursor.close()
+
+            print(f"Error creating meal plan: {e}")
+
+            return None
+
+   
+
+    @staticmethod
+
+    def add_item(plan_id, recipe_id, day_of_week, meal_type):
+
+        conn = get_connection()
+
+        cursor = conn.cursor()
+
+       
+
+        try:
+
+            cursor.execute(
+
+                """
+
+                INSERT INTO meal_plan_items
+
+                (meal_plan_id, recipe_id, day_of_week, meal_type)
+
+                VALUES (%s, %s, %s, %s)
+
+                """,
+
+                (plan_id, recipe_id, day_of_week, meal_type)
+
+            )
+
+            conn.commit()
+
+            cursor.close()
+
+           
+
+            return MealPlan.get_by_id(plan_id)
+
+        except Exception as e:
+
+            conn.rollback()
+
+            cursor.close()
+
+            print(f"Error adding meal plan item: {e}")
+
+            return None
+
+   
+
+    @staticmethod
+
+    def remove_item(item_id):
+
+        conn = get_connection()
+
+        cursor = conn.cursor()
+
+       
+
+        try:
+
+            # Get meal plan id first
+
+            cursor.execute(
+
+                "SELECT meal_plan_id FROM meal_plan_items WHERE id = %s",
+
+                (item_id,)
+
+            )
+
+            result = cursor.fetchone()
+
+            if not result:
+
+                cursor.close()
+
+                return None
+
+           
+
+            plan_id = result[0]
+
+           
+
+            # Delete the item
+
+            cursor.execute("DELETE FROM meal_plan_items WHERE id = %s", (item_id,))
+
+            conn.commit()
+
+            cursor.close()
+
+           
+
+            return MealPlan.get_by_id(plan_id)
+
+        except Exception as e:
+
+            conn.rollback()
+
+            cursor.close()
+
+            print(f"Error removing meal plan item: {e}")
+
+            return None
+
+
+----------------------------------------------------------------------------
+
+
+
+from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
+
+from flask_login import login_required, current_user
+
+from models.meal_plan import MealPlan
+
+from models.recipe import Recipe
+
+from models.inventory import Inventory
+
+from datetime import datetime, timedelta
+
+from database.mysql_setup import get_connection
+
+import random
+
+
+ 
+
+meal_plan_bp = Blueprint('meal_plan', __name__, url_prefix='/meal-plan')
+
+
+ 
+
+@meal_plan_bp.route('/')
+
+@login_required
+
+def index():
+
+    # Determine the current week's start date (Monday)
+
+    today = datetime.now().date()
+
+    days_since_monday = today.weekday()
+
+    week_start_date = today - timedelta(days=days_since_monday)
+
+
+ 
+
+    # Get meal plans for current week
+
+    meal_plans = MealPlan.get_by_user(current_user.id, week_start_date)
+
+
+ 
+
+    # If no meal plan exists for this week, create one
+
+    if not meal_plans:
+
+        meal_plan = MealPlan.create(current_user.id, week_start_date)
+
+        meal_plans = [meal_plan] if meal_plan else []
+
+
+ 
+
+    # Get user's inventory ingredients for recipe suggestions
+
+    inventory_items = Inventory.get_by_user_id(current_user.id)
+
+    ingredient_names = [item.ingredient_name for item in inventory_items]
+
+
+ 
+
+    # Get recipe suggestions based on inventory
+
+    recipe_suggestions = Recipe.search_by_ingredients(ingredient_names)
+
+
+ 
+
+    # Apply dietary preferences to suggestions
+
+    conn = get_connection()
+
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT * FROM user_preferences WHERE user_id = %s", (current_user.id,))
+
+    preferences = cursor.fetchone()
+
+    cursor.close()
+
+
+ 
+
+    if preferences and any([preferences['is_vegetarian'], preferences['is_vegan'],
+
+                           preferences['is_gluten_free'], preferences['is_dairy_free']]):
+
+        dietary_filters = {
+
+            'vegetarian': preferences['is_vegetarian'],
+
+            'vegan': preferences['is_vegan'],
+
+            'gluten_free': preferences['is_gluten_free'],
+
+            'dairy_free': preferences['is_dairy_free']
+
+        }
+
+        # Only apply filters that are true
+
+        active_filters = {k: v for k, v in dietary_filters.items() if v}
+
+   
+
+        if active_filters:
+
+            recipe_suggestions = Recipe.filter_by_dietary(recipe_suggestions, active_filters)
+
+
+ 
+
+    # Limit to top 10 suggestions
+
+    recipe_suggestions = recipe_suggestions[:10]
+
+
+ 
+
+    return render_template('meal_plan/index.html',
+
+                           meal_plans=meal_plans,
+
+                           week_start_date=week_start_date,
+
+                           recipe_suggestions=recipe_suggestions)
+
+
+ 
+
+@meal_plan_bp.route('/add', methods=['POST'])
+
+@login_required
+
+def add_recipe():
+
+    plan_id = request.form.get('plan_id')
+
+    recipe_id = request.form.get('recipe_id')
+
+    day_of_week = int(request.form.get('day_of_week'))
+
+    meal_type = request.form.get('meal_type')
+
+
+ 
+
+    if not all([plan_id, recipe_id, day_of_week, meal_type]):
+
+        flash('Missing required fields.', 'danger')
+
+        return redirect(url_for('meal_plan.index'))
+
+
+ 
+
+    # Add recipe to meal plan
+
+    updated_plan = MealPlan.add_item(plan_id, recipe_id, day_of_week, meal_type)
+
+
+ 
+
+    if updated_plan:
+
+        flash('Recipe added to meal plan!', 'success')
+
+    else:
+
+        flash('Error adding recipe to meal plan.', 'danger')
+
+
+ 
+
+    return redirect(url_for('meal_plan.index'))
+
+
+ 
+
+@meal_plan_bp.route('/remove/<int:item_id>', methods=['POST'])
+
+@login_required
+
+def remove_recipe(item_id):
+
+    # Remove recipe from meal plan
+
+    updated_plan = MealPlan.remove_item(item_id)
+
+
+ 
+
+    if updated_plan:
+
+        flash('Recipe removed from meal plan!', 'success')
+
+    else:
+
+        flash('Error removing recipe from meal plan.', 'danger')
+
+
+ 
+
+    return redirect(url_for('meal_plan.index'))
+
+
+ 
+
+@meal_plan_bp.route('/generate', methods=['GET'])
+
+@login_required
+
+def generate_plan():
+
+    # Get the meal plan ID from the query string
+
+    plan_id = request.args.get('plan_id')
+
+
+ 
+
+    if not plan_id:
+
+        flash('No meal plan specified.', 'danger')
+
+        return redirect(url_for('meal_plan.index'))
+
+
+ 
+
+    # Get user's inventory items
+
+    inventory_items = Inventory.get_by_user_id(current_user.id)
+
+
+ 
+
+    # Create a lookup table for inventory items
+
+    inventory_lookup = {}
+
+    for item in inventory_items:
+
+        inventory_lookup[item.ingredient_name] = {
+
+            'quantity': item.quantity,
+
+            'unit': item.unit
+
+        }
+
+
+ 
+
+    # Get user's dietary preferences
+
+    conn = get_connection()
+
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT * FROM user_preferences WHERE user_id = %s", (current_user.id,))
+
+    preferences = cursor.fetchone()
+
+    cursor.close()
+
+
+ 
+
+    # Get all recipes
+
+    all_recipes = Recipe.get_all()
+
+
+ 
+
+    # Apply dietary filters if applicable
+
+    if preferences and any([preferences['is_vegetarian'], preferences['is_vegan'],
+
+                           preferences['is_gluten_free'], preferences['is_dairy_free']]):
+
+        dietary_filters = {
+
+            'vegetarian': preferences['is_vegetarian'],
+
+            'vegan': preferences['is_vegan'],
+
+            'gluten_free': preferences['is_gluten_free'],
+
+            'dairy_free': preferences['is_dairy_free']
+
+        }
+
+        # Only apply filters that are true
+
+        active_filters = {k: v for k, v in dietary_filters.items() if v}
+
+   
+
+        if active_filters:
+
+            all_recipes = Recipe.filter_by_dietary(all_recipes, active_filters)
+
+
+ 
+
+    if len(all_recipes) < 10:  # Minimum recipes needed for a varied meal plan
+
+        flash('Not enough suitable recipes found. Please adjust your dietary preferences.', 'warning')
+
+        return redirect(url_for('meal_plan.index'))
+
+
+ 
+
+    # Clear existing meal plan
+
+    conn = get_connection()
+
+    cursor = conn.cursor()
+
+    cursor.execute("DELETE FROM meal_plan_items WHERE meal_plan_id = %s", (plan_id,))
+
+    conn.commit()
+
+    cursor.close()
+
+
+ 
+
+    # Score recipes based on available ingredients
+
+    scored_recipes = []
+
+    for recipe in all_recipes:
+
+        # Calculate how many ingredients we have for this recipe
+
+        available_count = 0
+
+        missing_count = 0
+
+        total_ingredients = len(recipe.get('ingredients', []))
+
+   
+
+        for ingredient in recipe.get('ingredients', []):
+
+            name = ingredient.get('name')
+
+            if name in inventory_lookup:
+
+                # Check if we have enough quantity
+
+                required_amount = ingredient.get('amount', 0)
+
+                user_quantity = inventory_lookup[name]['quantity']
+
+               
+
+                # Convert units if necessary
+
+                if inventory_lookup[name]['unit'] != ingredient.get('unit', ''):
+
+                    converted = Inventory.convert_units(user_quantity, inventory_lookup[name]['unit'], ingredient.get('unit', ''))
+
+                    if converted is not None:
+
+                        user_quantity = converted
+
+               
+
+                if user_quantity >= required_amount:
+
+                    available_count += 1
+
+                else:
+
+                    missing_count += 1
+
+            else:
+
+                missing_count += 1
+
+   
+
+        if total_ingredients > 0:
+
+            # Calculate match percentage based on available ingredients
+
+            match_percentage = (available_count / total_ingredients) * 100
+
+           
+
+            # If missing too many ingredients, severely reduce score
+
+            if missing_count > total_ingredients * 0.5:  # If missing more than 50% of ingredients
+
+                score = match_percentage * 0.5  # Reduce score by half
+
+            else:
+
+                score = match_percentage
+
+        else:
+
+            score = 0
+
+            match_percentage = 0
+
+       
+
+        # Add difficulty and time factors to scoring
+
+        if recipe.get('difficulty') == 'Easy':
+
+            score += 10
+
+        elif recipe.get('difficulty') == 'Hard':
+
+            score -= 10
+
+       
+
+        # Prefer recipes that don't take too long
+
+        total_time = recipe.get('prep_time', 0) + recipe.get('cook_time', 0)
+
+        if total_time <= 30:
+
+            score += 10
+
+        elif total_time >= 90:
+
+            score -= 10
+
+       
+
+        scored_recipes.append({
+
+            'recipe': recipe,
+
+            'score': score,
+
+            'match_percentage': match_percentage
+
+        })
+
+
+ 
+
+    # Sort recipes by score (highest first)
+
+    scored_recipes.sort(key=lambda x: x['score'], reverse=True)
+
+
+ 
+
+    # Get top 50% of recipes by score to ensure we're using recipes that match inventory well
+
+    cutoff = max(10, len(scored_recipes) // 2)  # At least 10 recipes or half, whichever is larger
+
+    top_recipes = scored_recipes[:cutoff]
+
+
+ 
+
+    # Group recipes by meal type preference
+
+    breakfast_recipes = [r for r in top_recipes if 'breakfast' in r['recipe'].get('tags', [])]
+
+    lunch_recipes = [r for r in top_recipes if any(tag in r['recipe'].get('tags', []) for tag in ['lunch', 'sandwich', 'salad', 'soup'])]
+
+    dinner_recipes = [r for r in top_recipes if any(tag in r['recipe'].get('tags', []) for tag in ['dinner', 'main', 'pasta', 'meat', 'fish'])]
+
+
+ 
+
+    # If not enough specific recipes, add more from general pool of top recipes
+
+    if len(breakfast_recipes) < 7:
+
+        # Add recipes that are not already categorized
+
+        remaining = [r for r in top_recipes if r not in breakfast_recipes and r not in lunch_recipes and r not in dinner_recipes]
+
+        breakfast_recipes.extend(remaining[:7-len(breakfast_recipes)])
+
+
+ 
+
+    if len(lunch_recipes) < 7:
+
+        # Add recipes that are not already categorized
+
+        remaining = [r for r in top_recipes if r not in breakfast_recipes and r not in lunch_recipes and r not in dinner_recipes]
+
+        lunch_recipes.extend(remaining[:7-len(lunch_recipes)])
+
+
+ 
+
+    if len(dinner_recipes) < 7:
+
+        # Add recipes that are not already categorized
+
+        remaining = [r for r in top_recipes if r not in breakfast_recipes and r not in lunch_recipes and r not in dinner_recipes]
+
+        dinner_recipes.extend(remaining[:7-len(dinner_recipes)])
+
+
+ 
+
+    # Create meal plan for each day
+
+    meal_types = ['breakfast', 'lunch', 'dinner']
+
+
+ 
+
+    for day in range(7):  # 0-6 for Monday to Sunday
+
+        # Select a breakfast recipe
+
+        if breakfast_recipes:
+
+            breakfast = random.choice(breakfast_recipes[:min(10, len(breakfast_recipes))])
+
+            MealPlan.add_item(plan_id, str(breakfast['recipe']['_id']), day, 'breakfast')
+
+            # Remove recipe to avoid duplicates
+
+            breakfast_recipes.remove(breakfast)
+
+       
+
+        # Select a lunch recipe
+
+        if lunch_recipes:
+
+            lunch = random.choice(lunch_recipes[:min(10, len(lunch_recipes))])
+
+            MealPlan.add_item(plan_id, str(lunch['recipe']['_id']), day, 'lunch')
+
+            # Remove recipe to avoid duplicates
+
+            lunch_recipes.remove(lunch)
+
+       
+
+        # Select a dinner recipe
+
+        if dinner_recipes:
+
+            dinner = random.choice(dinner_recipes[:min(10, len(dinner_recipes))])
+
+            MealPlan.add_item(plan_id, str(dinner['recipe']['_id']), day, 'dinner')
+
+            # Remove recipe to avoid duplicates
+
+            dinner_recipes.remove(dinner)
+
+
+ 
+
+    flash('Personalized meal plan generated successfully!', 'success')
+
+    return redirect(url_for('meal_plan.index'))
+
+
+ 
+
+@meal_plan_bp.route('/grocery-list')
+
+@login_required
+
+def grocery_list():
+
+    # Get the current meal plan
+
+    today = datetime.now().date()
+
+    days_since_monday = today.weekday()
+
+    week_start_date = today - timedelta(days=days_since_monday)
+
+
+ 
+
+    meal_plans = MealPlan.get_by_user(current_user.id, week_start_date)
+
+
+ 
+
+    if not meal_plans or not meal_plans[0].items: # Check if meal_plans is empty or the first meal plan has no items
+
+        flash('No meals planned for this week. Please generate a meal plan first.', 'warning')
+
+        return redirect(url_for('meal_plan.index'))
+
+
+ 
+
+    meal_plan = meal_plans[0]
+
+
+ 
+
+    # Get user's inventory
+
+    inventory_items = Inventory.get_by_user_id(current_user.id)
+
+    user_ingredients = {item.ingredient_name: {'quantity': item.quantity, 'unit': item.unit}
+
+                        for item in inventory_items}
+
+
+ 
+
+    # Compile grocery list from meal plan
+
+    grocery_list = {}
+
+
+ 
+
+    for item in meal_plan.items:
+
+        recipe = item['recipe']
+
+   
+
+        for ingredient in recipe.get('ingredients', []):
+
+            name = ingredient.get('name')
+
+            amount = ingredient.get('amount', 0)
+
+            unit = ingredient.get('unit', '')
+
+       
+
+            # Check if user already has this ingredient
+
+            if name in user_ingredients:
+
+                user_quantity = user_ingredients[name]['quantity']
+
+                user_unit = user_ingredients[name]['unit']
+
+           
+
+                # Convert units if needed
+
+                if user_unit != unit:
+
+                    converted = Inventory.convert_units(user_quantity, user_unit, unit)
+
+                    if converted is not None:
+
+                        user_quantity = converted
+
+           
+
+                # If user has enough, skip
+
+                if user_quantity >= amount:
+
+                    continue
+
+           
+
+                # Otherwise, add the difference
+
+                amount -= user_quantity
+
+       
+
+            # Add to grocery list
+
+            if name in grocery_list:
+
+                # If unit matches, add quantities
+
+                if grocery_list[name]['unit'] == unit:
+
+                    grocery_list[name]['amount'] += amount
+
+                else:
+
+                    # Try to convert
+
+                    converted = Inventory.convert_units(grocery_list[name]['amount'], grocery_list[name]['unit'], unit)
+
+                    if converted is not None:
+
+                        grocery_list[name]['amount'] = converted + amount
+
+                        grocery_list[name]['unit'] = unit
+
+                    else:
+
+                        # Can't convert, keep separate entry
+
+                        # This creates a unique key for ingredients with the same name but different units
+
+                        grocery_list[f"{name} ({unit})"] = {'name': name, 'amount': amount, 'unit': unit}
+
+            else:
+
+                grocery_list[name] = {'name': name, 'amount': amount, 'unit': unit}
+
+
+ 
+
+    # Convert to list
+
+    grocery_items = list(grocery_list.values())
+
+
+ 
+
+    # Sort by name
+
+    grocery_items.sort(key=lambda x: x['name'])
+
+
+ 
+
+    return render_template('meal_plan/grocery_list.html',
+
+                           meal_plan=meal_plan,
+
+                           grocery_list=grocery_items) # Removed 'recipe=recipe'
+
+--------------------------------------------------------------------------------------
+
+:root {
+
+    --sage-green: #7d9c8c;
+
+    --sage-green-light: #a6c4b5;
+
+    --sage-green-dark: #526b5e;
+
+    --terracotta: #d17a5c;
+
+    --terracotta-light: #e5a490;
+
+    --terracotta-dark: #b05d42;
+
+    --cream: #f7f4eb;
+
+    --brown: #63432c;
+
+    --brown-light: #9c7a62;
+
+    --brown-dark: #432d1d;
+
+    --success: #48b982;
+
+    --warning: #f0ba33;
+
+    --danger: #e35e54;
+
+    --gray-100: #f8f9fa;
+
+    --gray-200: #e9ecef;
+
+    --gray-300: #dee2e6;
+
+    --gray-400: #ced4da;
+
+    --gray-500: #adb5bd;
+
+    --gray-600: #6c757d;
+
+    --gray-700: #495057;
+
+    --gray-800: #343a40;
+
+    --gray-900: #212529;
+
+  }
+
+
+
+  body {
+
+    font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+
+    background-color: var(--cream);
+
+    color: var(--gray-800);
+
+    line-height: 1.5;
+
+  }
+
+
+
+  /* Layout */
+
+  .container {
+
+    width: 100%;
+
+    max-width: 1200px;
+
+    margin: 0 auto;
+
+    padding: 0 1rem;
+
+  }
+
+
+
+  /* Typography */
+
+  h1, h2, h3, h4, h5, h6 {
+
+    font-weight: 700;
+
+    color: var(--brown);
+
+    margin-bottom: 1rem;
+
+    line-height: 1.2;
+
+  }
+
+
+
+  h1 {
+
+    font-size: 2.25rem;
+
+  }
+
+
+
+  h2 {
+
+    font-size: 1.875rem;
+
+  }
+
+
+
+  h3 {
+
+    font-size: 1.5rem;
+
+  }
+
+
+
+  a {
+
+    color: var(--sage-green-dark);
+
+    text-decoration: none;
+
+    transition: color 0.2s;
+
+  }
+
+
+
+  a:hover {
+
+    color: var(--terracotta);
+
+  }
+
+
+
+  /* Buttons */
+
+  .btn {
+
+    display: inline-block;
+
+    font-weight: 500;
+
+    text-align: center;
+
+    white-space: nowrap;
+
+    vertical-align: middle;
+
+    user-select: none;
+
+    border: 1px solid transparent;
+
+    padding: 0.5rem 1rem;
+
+    font-size: 1rem;
+
+    border-radius: 0.375rem;
+
+    transition: all 0.15s ease-in-out;
+
+    cursor: pointer;
+
+  }
+
+
+
+  .btn-primary {
+
+    background-color: var(--sage-green);
+
+    color: white;
+
+  }
+
+
+
+  .btn-primary:hover {
+
+    background-color: var(--sage-green-dark);
+
+    color: white;
+
+  }
+
+
+
+  .btn-secondary {
+
+    background-color: var(--terracotta);
+
+    color: white;
+
+  }
+
+
+
+  .btn-secondary:hover {
+
+    background-color: var(--terracotta-dark);
+
+    color: white;
+
+  }
+
+
+
+  .btn-outline {
+
+    background-color: transparent;
+
+    border-color: var(--sage-green);
+
+    color: var(--sage-green);
+
+  }
+
+
+
+  .btn-outline:hover {
+
+    background-color: var(--sage-green);
+
+    color: white;
+
+  }
+
+
+
+  .btn-sm {
+
+    font-size: 0.875rem;
+
+    padding: 0.25rem 0.5rem;
+
+  }
+
+
+
+  .btn-lg {
+
+    font-size: 1.125rem;
+
+    padding: 0.75rem 1.5rem;
+
+  }
+
+
+
+  /* Cards */
+
+  .card {
+
+    background-color: white;
+
+    border-radius: 0.5rem;
+
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+
+    overflow: hidden;
+
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+
+  }
+
+
+
+  .card:hover {
+
+    transform: translateY(-4px);
+
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.08);
+
+  }
+
+
+
+  .card-img {
+
+    width: 100%;
+
+    height: 200px;
+
+    object-fit: cover;
+
+  }
+
+
+
+  .card-body {
+
+    padding: 1.25rem;
+
+  }
+
+
+
+  .card-title {
+
+    font-size: 1.25rem;
+
+    font-weight: 600;
+
+    margin-bottom: 0.5rem;
+
+    color: var(--brown);
+
+  }
+
+
+
+  .card-text {
+
+    color: var(--gray-700);
+
+    margin-bottom: 1rem;
+
+  }
+
+
+
+  /* Header & Navigation */
+
+  .header {
+
+    background-color: white;
+
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+
+    padding: 1rem 0;
+
+    position: sticky;
+
+    top: 0;
+
+    z-index: 100;
+
+  }
+
+
+
+  .nav {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+  }
+
+
+
+  .nav-logo {
+
+    font-size: 1.5rem;
+
+    font-weight: 700;
+
+    color: var(--sage-green);
+
+  }
+
+
+
+  .nav-logo span {
+
+    color: var(--terracotta);
+
+  }
+
+
+
+  .nav-menu {
+
+    display: flex;
+
+    gap: 1.5rem;
+
+    list-style: none;
+
+    margin: 0;
+
+    padding: 0;
+
+  }
+
+
+
+  .nav-link {
+
+    color: var(--gray-700);
+
+    font-weight: 500;
+
+    padding: 0.5rem;
+
+    border-bottom: 2px solid transparent;
+
+    transition: all 0.2s;
+
+  }
+
+
+
+  .nav-link:hover {
+
+    color: var(--terracotta);
+
+    border-bottom-color: var(--terracotta);
+
+  }
+
+
+
+  .nav-link.active {
+
+    color: var(--sage-green);
+
+    border-bottom-color: var(--sage-green);
+
+  }
+
+
+
+  /* Forms */
+
+  .form-group {
+
+    margin-bottom: 1rem;
+
+  }
+
+
+
+  .form-label {
+
+    display: block;
+
+    margin-bottom: 0.5rem;
+
+    font-weight: 500;
+
+    color: var(--gray-700);
+
+  }
+
+
+
+  .form-control {
+
+    display: block;
+
+    width: 100%;
+
+    padding: 0.5rem;
+
+    font-size: 1rem;
+
+    line-height: 1.5;
+
+    color: var(--gray-800);
+
+    background-color: white;
+
+    border: 1px solid var(--gray-300);
+
+    border-radius: 0.375rem;
+
+    transition: border-color 0.15s ease-in-out;
+
+  }
+
+
+
+  .form-control:focus {
+
+    border-color: var(--sage-green);
+
+    outline: 0;
+
+    box-shadow: 0 0 0 0.2rem rgba(125, 156, 140, 0.25);
+
+  }
+
+
+
+  .form-select {
+
+    display: block;
+
+    width: 100%;
+
+    padding: 0.5rem;
+
+    font-size: 1rem;
+
+    line-height: 1.5;
+
+    color: var(--gray-800);
+
+    background-color: white;
+
+    border: 1px solid var(--gray-300);
+
+    border-radius: 0.375rem;
+
+    appearance: none;
+
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+
+    background-repeat: no-repeat;
+
+    background-position: right 0.75rem center;
+
+    background-size: 16px 12px;
+
+  }
+
+
+
+  /* Alerts */
+
+  .alert {
+
+    padding: 1rem;
+
+    margin-bottom: 1rem;
+
+    border-radius: 0.375rem;
+
+  }
+
+
+
+  .alert-success {
+
+    background-color: rgba(72, 185, 130, 0.15);
+
+    color: var(--success);
+
+    border: 1px solid rgba(72, 185, 130, 0.3);
+
+  }
+
+
+
+  .alert-warning {
+
+    background-color: rgba(240, 186, 51, 0.15);
+
+    color: var(--warning);
+
+    border: 1px solid rgba(240, 186, 51, 0.3);
+
+  }
+
+
+
+  .alert-danger {
+
+    background-color: rgba(227, 94, 84, 0.15);
+
+    color: var(--danger);
+
+    border: 1px solid rgba(227, 94, 84, 0.3);
+
+  }
+
+
+
+  /* Badges */
+
+  .badge {
+
+    display: inline-block;
+
+    padding: 0.25rem 0.5rem;
+
+    font-size: 0.75rem;
+
+    font-weight: 600;
+
+    border-radius: 0.375rem;
+
+    text-transform: uppercase;
+
+    letter-spacing: 0.05em;
+
+  }
+
+
+
+  .badge-success {
+
+    background-color: var(--success);
+
+    color: white;
+
+  }
+
+
+
+  .badge-warning {
+
+    background-color: var(--warning);
+
+    color: white;
+
+  }
+
+
+
+  .badge-danger {
+
+    background-color: var(--danger);
+
+    color: white;
+
+  }
+
+
+
+  .badge-info {
+
+    background-color: var(--sage-green-light);
+
+    color: var(--sage-green-dark);
+
+  }
+
+
+
+  /* Recipe Cards */
+
+  .recipe-card {
+
+    height: 100%;
+
+    display: flex;
+
+    flex-direction: column;
+
+  }
+
+
+
+  .recipe-card .card-img {
+
+    height: 180px;
+
+  }
+
+
+
+  .recipe-card .card-body {
+
+    flex-grow: 1;
+
+    display: flex;
+
+    flex-direction: column;
+
+  }
+
+
+
+  .recipe-meta {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    font-size: 0.875rem;
+
+    color: var(--gray-600);
+
+    margin-bottom: 0.5rem;
+
+  }
+
+
+
+  .recipe-tags {
+
+    display: flex;
+
+    flex-wrap: wrap;
+
+    gap: 0.5rem;
+
+    margin-top: auto;
+
+  }
+
+
+
+  .recipe-tag {
+
+    background-color: var(--gray-200);
+
+    color: var(--gray-700);
+
+    padding: 0.25rem 0.5rem;
+
+    border-radius: 0.25rem;
+
+    font-size: 0.75rem;
+
+  }
+
+
+
+  .match-indicator {
+
+    display: flex;
+
+    align-items: center;
+
+    margin-top: 0.5rem;
+
+  }
+
+
+
+  .match-bar {
+
+    height: 8px;
+
+    border-radius: 4px;
+
+    background-color: var(--gray-200);
+
+    width: 100%;
+
+    overflow: hidden;
+
+    margin-right: 0.5rem;
+
+  }
+
+
+
+  .match-progress {
+
+    height: 100%;
+
+    border-radius: 4px;
+
+    transition: width 0.3s ease;
+
+  }
+
+
+
+  .match-text {
+
+    font-size: 0.875rem;
+
+    font-weight: 500;
+
+    white-space: nowrap;
+
+  }
+
+
+
+  /* Inventory List */
+
+  .inventory-list {
+
+    display: grid;
+
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+
+    gap: 1rem;
+
+  }
+
+
+
+  .inventory-item {
+
+    border: 1px solid var(--gray-300);
+
+    border-radius: 0.375rem;
+
+    padding: 1rem;
+
+    background-color: white;
+
+    transition: transform 0.2s ease;
+
+  }
+
+
+
+  .inventory-item:hover {
+
+    transform: translateY(-2px);
+
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+
+  }
+
+
+
+  .inventory-item.expiring {
+
+    border-color: var(--warning);
+
+    background-color: rgba(240, 186, 51, 0.05);
+
+  }
+
+
+
+  .inventory-item.expired {
+
+    border-color: var(--danger);
+
+    background-color: rgba(227, 94, 84, 0.05);
+
+  }
+
+
+
+  .inventory-header {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    margin-bottom: 0.5rem;
+
+  }
+
+
+
+  .inventory-name {
+
+    font-weight: 600;
+
+    font-size: 1.125rem;
+
+    color: var(--brown);
+
+  }
+
+
+
+  .inventory-category {
+
+    font-size: 0.75rem;
+
+    color: var(--gray-600);
+
+    text-transform: uppercase;
+
+    letter-spacing: 0.05em;
+
+  }
+
+
+
+  .inventory-details {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+  }
+
+
+
+  .inventory-quantity {
+
+    font-weight: 500;
+
+  }
+
+
+
+  .inventory-expiry {
+
+    font-size: 0.875rem;
+
+    color: var(--gray-600);
+
+  }
+
+
+
+  .inventory-actions {
+
+    display: flex;
+
+    gap: 0.5rem;
+
+    margin-top: 0.75rem;
+
+    justify-content: flex-end;
+
+  }
+
+
+
+  /* Meal Plan */
+
+  .meal-plan-grid {
+
+    display: grid;
+
+    grid-template-columns: auto repeat(7, 1fr);
+
+    gap: 0.5rem;
+
+    margin-bottom: 2rem;
+
+  }
+
+
+
+  .meal-plan-header {
+
+    font-weight: 600;
+
+    text-align: center;
+
+    padding: 0.5rem;
+
+    background-color: var(--sage-green);
+
+    color: white;
+
+    border-radius: 0.375rem;
+
+  }
+
+
+
+  .meal-plan-time {
+
+    font-weight: 600;
+
+    padding: 0.5rem;
+
+    background-color: var(--sage-green-light);
+
+    color: var(--sage-green-dark);
+
+    border-radius: 0.375rem;
+
+  }
+
+
+
+  .meal-plan-cell {
+
+    min-height: 100px;
+
+    border: 1px solid var(--gray-300);
+
+    border-radius: 0.375rem;
+
+    padding: 0.5rem;
+
+    background-color: white;
+
+  }
+
+
+
+  .meal-plan-recipe {
+
+    font-size: 0.875rem;
+
+    margin-bottom: 0.25rem;
+
+  }
+
+
+
+  .meal-plan-empty {
+
+    color: var(--gray-500);
+
+    font-style: italic;
+
+    font-size: 0.875rem;
+
+  }
+
+
+
+  /* Recipe Detail */
+
+  .recipe-detail {
+
+    display: grid;
+
+    grid-template-columns: 1fr 1fr;
+
+    gap: 2rem;
+
+  }
+
+
+
+  .recipe-image {
+
+    width: 100%;
+
+    height: 350px;
+
+    object-fit: cover;
+
+    border-radius: 0.5rem;
+
+  }
+
+
+
+  .recipe-info {
+
+    margin-bottom: 1.5rem;
+
+  }
+
+
+
+  .recipe-meta-detail {
+
+    display: flex;
+
+    gap: 1.5rem;
+
+    margin-bottom: 1rem;
+
+  }
+
+
+
+  .recipe-meta-item {
+
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+
+  }
+
+
+
+  .recipe-meta-label {
+
+    font-size: 0.75rem;
+
+    text-transform: uppercase;
+
+    color: var(--gray-600);
+
+    letter-spacing: 0.05em;
+
+  }
+
+
+
+  .recipe-meta-value {
+
+    font-weight: 600;
+
+    color: var(--brown);
+
+  }
+
+
+
+  .recipe-ingredients {
+
+    margin-bottom: 1.5rem;
+
+  }
+
+
+
+  .ingredients-list {
+
+    list-style: none;
+
+    padding: 0;
+
+  }
+
+
+
+  .ingredient-item {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    padding: 0.5rem 0;
+
+    border-bottom: 1px solid var(--gray-200);
+
+  }
+
+
+
+  .recipe-instructions {
+
+    margin-bottom: 1.5rem;
+
+  }
+
+
+
+  .instructions-list {
+
+    list-style: none;
+
+    padding: 0;
+
+    counter-reset: step;
+
+  }
+
+
+
+  .instruction-item {
+
+    position: relative;
+
+    padding: 0.75rem 0 0.75rem 2rem;
+
+    border-bottom: 1px solid var(--gray-200);
+
+  }
+
+
+
+  .instruction-item::before {
+
+    counter-increment: step;
+
+    content: counter(step);
+
+    position: absolute;
+
+    left: 0;
+
+    top: 0.75rem;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    width: 1.5rem;
+
+    height: 1.5rem;
+
+    background-color: var(--sage-green);
+
+    color: white;
+
+    border-radius: 50%;
+
+    font-weight: 600;
+
+    font-size: 0.75rem;
+
+  }
+
+
+
+  .recipe-nutrition {
+
+    display: grid;
+
+    grid-template-columns: repeat(4, 1fr);
+
+    gap: 1rem;
+
+    margin-bottom: 1.5rem;
+
+  }
+
+
+
+  .nutrition-item {
+
+    background-color: var(--cream);
+
+    border-radius: 0.375rem;
+
+    padding: 0.75rem;
+
+    text-align: center;
+
+  }
+
+
+
+  .nutrition-value {
+
+    font-size: 1.25rem;
+
+    font-weight: 700;
+
+    color: var(--brown);
+
+  }
+
+
+
+  .nutrition-label {
+
+    font-size: 0.75rem;
+
+    text-transform: uppercase;
+
+    color: var(--gray-600);
+
+    letter-spacing: 0.05em;
+
+  }
+
+
+
+  /* Responsive */
+
+  @media (max-width: 768px) {
+
+    .recipe-detail {
+
+      grid-template-columns: 1fr;
+
+    }
+
+   
+
+    .meal-plan-grid {
+
+      grid-template-columns: 1fr;
+
+    }
+
+   
+
+    .meal-plan-header {
+
+      display: none;
+
+    }
+
+   
+
+    .meal-plan-cell {
+
+      display: flex;
+
+      flex-direction: column;
+
+    }
+
+   
+
+    .meal-plan-cell::before {
+
+      content: attr(data-day);
+
+      font-weight: 600;
+
+      margin-bottom: 0.5rem;
+
+    }
+
+   
+
+    .inventory-list {
+
+      grid-template-columns: 1fr;
+
+    }
+
+  }
+
+
+
+  /* Animations */
+
+  @keyframes fadeIn {
+
+    from { opacity: 0; }
+
+    to { opacity: 1; }
+
+  }
+
+
+
+  .fade-in {
+
+    animation: fadeIn 0.3s ease-in-out;
+
+  }
+
+
+
+  @keyframes slideInUp {
+
+    from {
+
+      transform: translateY(10px);
+
+      opacity: 0;
+
+    }
+
+    to {
+
+      transform: translateY(0);
+
+      opacity: 1;
+
+    }
+
+  }
+
+
+
+  .slide-in-up {
+
+    animation: slideInUp 0.3s ease-in-out;
+
+  }
+
+
+ 
+
+  .form-container {
+
+    max-width: 500px;
+
+    margin: 0 auto;
+
+    padding: 1rem; /* Add some internal padding to ensure space even on very small screens */
+
+}
+
+
+ 
+
+/* Ensure form groups have consistent spacing, which you already largely have with mb-3/mb-4 */
+
+.form-group {
+
+    margin-bottom: 1rem;
+
+}
+
+
+
+  /* Utilities */
+
+  .mt-1 { margin-top: 0.25rem; }
+
+  .mt-2 { margin-top: 0.5rem; }
+
+  .mt-3 { margin-top: 1rem; }
+
+  .mt-4 { margin-top: 1.5rem; }
+
+  .mt-5 { margin-top: 3rem; }
+
+
+
+  .mb-1 { margin-bottom: 0.25rem; }
+
+  .mb-2 { margin-bottom: 0.5rem; }
+
+  .mb-3 { margin-bottom: 1rem; }
+
+  .mb-4 { margin-bottom: 1.5rem; }
+
+  .mb-5 { margin-bottom: 3rem; }
+
+
+
+  .text-danger { color: var(--danger); }
+
+  .text-warning { color: var(--warning); }
+
+  .text-success { color: var(--success); }
+
+
+
+  .text-center { text-align: center; }
+
+  .text-right { text-align: right; }
+
+
+
+  .d-flex { display: flex; }
+
+  .justify-content-between { justify-content: space-between; }
+
+  .align-items-center { align-items: center; }
+
+  .flex-column { flex-direction: column; }
+
+  .gap-1 { gap: 0.25rem; }
+
+  .gap-2 { gap: 0.5rem; }
+
+  .gap-3 { gap: 1rem; }
+
+
+ 
+
+---------------------------------------------------------
