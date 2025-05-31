@@ -1,0 +1,118 @@
+inventory_routes.py
+
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
+from flask_login import login_required, current_user
+from models.inventory import Inventory # Assuming this model handles DB operations for inventory
+from models.ingredient import Ingredient
+from datetime import datetime
+
+inventory_bp = Blueprint('inventory', __name__)
+
+@inventory_bp.route('/inventory')
+@login_required
+def list_inventory():
+   user_id = current_user.id
+   inventory_items = Inventory.find_by_user_id(user_id)
+   return render_template('inventory.html', inventory_items=inventory_items)
+
+@inventory_bp.route('/inventory/add', methods=['GET', 'POST'])
+@login_required
+def add_inventory_item():
+   if request.method == 'POST':
+       ingredient_name = request.form['ingredient_name']
+       quantity = float(request.form['quantity'])
+       unit = request.form['unit']
+       
+       # Check if ingredient exists in the global ingredient list
+       ingredient = Ingredient.find_by_name(ingredient_name)
+       if not ingredient:
+           flash('Ingredient not found in the master list.')
+           return redirect(url_for('inventory.add_inventory_item'))
+
+       user_id = current_user.id
+       added_date = datetime.now()
+       expiry_date = request.form.get('expiry_date')
+       
+       # Convert expiry_date string to datetime object if it exists
+       if expiry_date:
+           expiry_date = datetime.strptime(expiry_date, '%Y-%m-%d')
+       else:
+           expiry_date = None # Or set a default far future date
+
+       # Check if this ingredient is already in the user's inventory
+       # Using ingredient_id for a robust check to avoid duplicates
+       existing_inventory_item = Inventory.get_collection().find_one({
+           'user_id': user_id,
+           'ingredient_id': str(ingredient['_id'])
+       })
+
+       if existing_inventory_item:
+           # If the ingredient already exists, display a message and redirect
+           flash(f'"{ingredient_name}" is already in your inventory. Please update the existing entry if you wish to change its quantity or details.', 'warning')
+           return redirect(url_for('inventory.list_inventory'))
+       else:
+           # If the ingredient is not in inventory, add it
+           inventory_item_data = {
+               'user_id': user_id,
+               'ingredient_id': str(ingredient['_id']),
+               'ingredient_name': ingredient_name,
+               'quantity': quantity,
+               'unit': unit,
+               'added_date': added_date,
+               'expiry_date': expiry_date
+           }
+           Inventory.create(inventory_item_data)
+           flash('Inventory item added successfully!', 'success')
+           return redirect(url_for('inventory.list_inventory'))
+   
+   # For GET request, render the add form
+   ingredients = Ingredient.get_all() # Assuming this gets all master ingredients
+   return render_template('add_inventory_item.html', ingredients=ingredients)
+
+@inventory_bp.route('/inventory/edit/<item_id>', methods=['GET', 'POST'])
+@login_required
+def edit_inventory_item(item_id):
+    item = Inventory.find_by_id(item_id)
+    if not item or item['user_id'] != current_user.id:
+        flash('Inventory item not found or you do not have permission to edit.', 'danger')
+        return redirect(url_for('inventory.list_inventory'))
+
+    if request.method == 'POST':
+        quantity = float(request.form['quantity'])
+        unit = request.form['unit']
+        expiry_date = request.form.get('expiry_date')
+
+        if expiry_date:
+            expiry_date = datetime.strptime(expiry_date, '%Y-%m-%d')
+        else:
+            expiry_date = None
+        
+        update_data = {
+            'quantity': quantity,
+            'unit': unit,
+            'expiry_date': expiry_date
+        }
+        
+        if Inventory.update(item_id, update_data):
+            flash('Inventory item updated successfully!', 'success')
+        else:
+            flash('Failed to update inventory item.', 'danger')
+        
+        return redirect(url_for('inventory.list_inventory'))
+    
+    return render_template('edit_inventory_item.html', item=item)
+
+@inventory_bp.route('/inventory/delete/<item_id>', methods=['POST'])
+@login_required
+def delete_inventory_item(item_id):
+    item = Inventory.find_by_id(item_id)
+    if not item or item['user_id'] != current_user.id:
+        flash('Inventory item not found or you do not have permission to delete.', 'danger')
+        return redirect(url_for('inventory.list_inventory'))
+    
+    if Inventory.delete(item_id):
+        flash('Inventory item deleted successfully!', 'success')
+    else:
+        flash('Failed to delete inventory item.', 'danger')
+    
+    return redirect(url_for('inventory.list_inventory'))
