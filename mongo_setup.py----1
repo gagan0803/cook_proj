@@ -446,7 +446,7 @@ def seed_ingredients():
        {"name": "garlic", "category": "vegetable", "unit": "cloves"},
        {"name": "soy sauce", "category": "condiment", "unit": "tbsp"},
        {"name": "sesame oil", "category": "oil", "unit": "tbsp"},
-       {"name": "rice", "category": "grain", "unit": "cups"},
+       {"name": "rice", "category": "grain", "unit": "g"},
        {"name": "bread", "category": "bakery", "unit": "slices"},
        {"name": "avocado", "category": "fruit", "unit": "whole"},
        {"name": "lemon juice", "category": "condiment", "unit": "tsp"},
