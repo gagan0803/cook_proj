@@ -1,0 +1,503 @@
+mongo_setup.py
+
+from flask import Flask
+from pymongo import MongoClient
+import json
+import os
+
+mongo_client = MongoClient("mongodb://localhost:27017/")
+mongo_db = mongo_client["cookbookit"]
+
+def init_mongo(app: Flask):
+   global mongo_client, mongo_db
+   mongo_client = MongoClient(app.config['MONGO_URI'])
+   mongo_db = mongo_client.get_database()
+
+   # Register the MongoDB instance with Flask app
+   app.extensions['mongo_db'] = mongo_db
+   
+   # Seed recipes and ingredients if the collections are empty
+   if mongo_db.recipes.count_documents({}) == 0:
+       seed_recipes()
+   
+   if mongo_db.ingredients.count_documents({}) == 0:
+       seed_ingredients()
+   
+   return mongo_db
+
+def seed_recipes():
+   global mongo_db
+   recipes = [
+       {
+           "name": "Spaghetti Carbonara",
+           "description": "Classic Italian pasta dish with eggs, cheese, pancetta and black pepper.",
+           "ingredients": [
+               {"name": "spaghetti", "amount": 400, "unit": "g"},
+               {"name": "pancetta", "amount": 150, "unit": "g"},
+               {"name": "egg", "amount": 3, "unit": "whole"},
+               {"name": "parmesan cheese", "amount": 50, "unit": "g"},
+               {"name": "black pepper", "amount": 2, "unit": "tsp"},
+               {"name": "salt", "amount": 1, "unit": "tsp"}
+           ],
+           "instructions": [
+               "Boil spaghetti in salted water until al dente.",
+               "Fry pancetta until crispy.",
+               "Beat eggs with grated parmesan cheese.",
+               "Drain pasta and mix with pancetta.",
+               "Quickly stir in egg mixture off the heat to create a creamy sauce.",
+               "Season with black pepper and serve immediately."
+           ],
+           "prep_time": 10,
+           "cook_time": 15,
+           "servings": 1,
+           "difficulty": "Medium",
+           "tags": ["italian", "pasta", "quick", "dinner"],
+           "dietary_info": {
+               "vegetarian": False,
+               "vegan": False,
+               "gluten_free": False,
+               "dairy_free": False
+           },
+           "nutrition": {
+               "calories": 450,
+               "protein": 20,
+               "carbs": 55,
+               "fat": 18
+           },
+           "image_url": "Spaghetti.jpg"
+       },
+       {
+           "name": "Vegetable Stir Fry",
+           "description": "Quick and healthy vegetable stir fry with a savory sauce.",
+           "ingredients": [
+               {"name": "broccoli", "amount": 1, "unit": "whole"},
+               {"name": "carrot", "amount": 2, "unit": "whole"},
+               {"name": "bell pepper", "amount": 1, "unit": "whole"},
+               {"name": "onion", "amount": 1, "unit": "whole"},
+               {"name": "garlic", "amount": 2, "unit": "cloves"},
+               {"name": "soy sauce", "amount": 2, "unit": "tbsp"},
+               {"name": "sesame oil", "amount": 1, "unit": "tbsp"},
+               {"name": "rice", "amount": 2, "unit": "cups"}
+           ],
+           "instructions": [
+               "Chop all vegetables into bite-sized pieces.",
+               "Heat oil in a wok or large frying pan.",
+               "Add garlic and onion, stir fry until fragrant.",
+               "Add remaining vegetables and stir fry until crisp-tender.",
+               "Add soy sauce and sesame oil, toss to combine.",
+               "Serve hot over cooked rice."
+           ],
+           "prep_time": 15,
+           "cook_time": 10,
+           "servings": 1,
+           "difficulty": "Easy",
+           "tags": ["vegetarian", "asian", "quick", "healthy"],
+           "dietary_info": {
+               "vegetarian": True,
+               "vegan": True,
+               "gluten_free": False,
+               "dairy_free": True
+           },
+           "nutrition": {
+               "calories": 320,
+               "protein": 8,
+               "carbs": 60,
+               "fat": 6
+           },
+           "image_url": "Veg_Stir_Fry.jpg"
+       },
+       {
+           "name": "Avocado Toast",
+           "description": "Simple and nutritious breakfast with avocado on toast.",
+           "ingredients": [
+               {"name": "bread", "amount": 2, "unit": "slices"},
+               {"name": "avocado", "amount": 1, "unit": "whole"},
+               {"name": "lemon juice", "amount": 1, "unit": "tsp"},
+               {"name": "salt", "amount": 0.5, "unit": "tsp"},
+               {"name": "red pepper flakes", "amount": 0.25, "unit": "tsp"},
+               {"name": "egg", "amount": 2, "unit": "whole"}
+           ],
+           "instructions": [
+               "Toast bread until golden and crisp.",
+               "Mash avocado with lemon juice and salt.",
+               "Fry eggs sunny-side up.",
+               "Spread avocado mixture on toast.",
+               "Top with fried egg and sprinkle with red pepper flakes."
+           ],
+           "prep_time": 5,
+           "cook_time": 5,
+           "servings": 1,
+           "difficulty": "Easy",
+           "tags": ["breakfast", "vegetarian", "quick", "healthy"],
+           "dietary_info": {
+               "vegetarian": True,
+               "vegan": False,
+               "gluten_free": False,
+               "dairy_free": True
+           },
+           "nutrition": {
+               "calories": 280,
+               "protein": 10,
+               "carbs": 20,
+               "fat": 18
+           },
+           "image_url": "Avacado_Toast.jpg"
+       },
+       {
+           "name": "Vegetarian Chili",
+           "description": "Hearty and flavorful vegetarian chili with beans and vegetables.",
+           "ingredients": [
+               {"name": "kidney beans", "amount": 400, "unit": "g"},
+               {"name": "black beans", "amount": 400, "unit": "g"},
+               {"name": "onion", "amount": 1, "unit": "whole"},
+               {"name": "bell pepper", "amount": 2, "unit": "whole"},
+               {"name": "garlic", "amount": 3, "unit": "cloves"},
+               {"name": "diced tomatoes", "amount": 800, "unit": "g"},
+               {"name": "tomato paste", "amount": 2, "unit": "tbsp"},
+               {"name": "chili powder", "amount": 2, "unit": "tbsp"},
+               {"name": "cumin", "amount": 1, "unit": "tbsp"},
+               {"name": "paprika", "amount": 1, "unit": "tsp"}
+           ],
+           "instructions": [
+               "Dice onion and bell peppers, mince garlic.",
+               "Sauté onion, bell peppers, and garlic until soft.",
+               "Add spices and cook until fragrant.",
+               "Add beans, diced tomatoes, and tomato paste.",
+               "Simmer for 30 minutes, stirring occasionally.",
+               "Serve hot with optional toppings like cheese, sour cream, or avocado."
+           ],
+           "prep_time": 15,
+           "cook_time": 40,
+           "servings": 1,
+           "difficulty": "Medium",
+           "tags": ["vegetarian", "dinner", "healthy", "meal prep"],
+           "dietary_info": {
+               "vegetarian": True,
+               "vegan": True,
+               "gluten_free": True,
+               "dairy_free": True
+           },
+           "nutrition": {
+               "calories": 320,
+               "protein": 15,
+               "carbs": 55,
+               "fat": 4
+           },
+           "image_url": "Veg_Chilly.jpg"
+       },
+       {
+           "name": "Chicken Salad",
+           "description": "Fresh and protein-packed chicken salad with mixed greens and homemade dressing.",
+           "ingredients": [
+               {"name": "chicken breast", "amount": 2, "unit": "whole"},
+               {"name": "mixed greens", "amount": 200, "unit": "g"},
+               {"name": "cherry tomatoes", "amount": 100, "unit": "g"},
+               {"name": "cucumber", "amount": 1, "unit": "whole"},
+               {"name": "red onion", "amount": 0.5, "unit": "whole"},
+               {"name": "olive oil", "amount": 2, "unit": "tbsp"},
+               {"name": "lemon juice", "amount": 1, "unit": "tbsp"},
+               {"name": "mustard", "amount": 1, "unit": "tsp"},
+               {"name": "honey", "amount": 1, "unit": "tsp"},
+               {"name": "salt", "amount": 0.5, "unit": "tsp"},
+               {"name": "black pepper", "amount": 0.25, "unit": "tsp"}
+           ],
+           "instructions": [
+               "Season chicken breasts with salt and pepper and grill until cooked through.",
+               "Wash and prep all vegetables.",
+               "Slice cucumber and red onion, halve cherry tomatoes.",
+               "Whisk together olive oil, lemon juice, mustard, honey, salt, and pepper for the dressing.",
+               "Slice cooled chicken breast.",
+               "Combine all ingredients in a large bowl, drizzle with dressing, and toss gently."
+           ],
+           "prep_time": 15,
+           "cook_time": 15,
+           "servings": 1,
+           "difficulty": "Easy",
+           "tags": ["salad", "protein", "healthy", "lunch"],
+           "dietary_info": {
+               "vegetarian": False,
+               "vegan": False,
+               "gluten_free": True,
+               "dairy_free": True
+           },
+           "nutrition": {
+               "calories": 350,
+               "protein": 30,
+               "carbs": 15,
+               "fat": 18
+           },
+           "image_url": "Chicken_Salad.jpg"
+       },
+       {
+           "name": "Paneer Butter Masala",
+           "description": "Creamy tomato-based curry with Indian cottage cheese.",
+           "ingredients": [
+               {"name": "paneer", "amount": 200, "unit": "g"},
+               {"name": "tomato puree", "amount": 200, "unit": "ml"},
+               {"name": "cream", "amount": 50, "unit": "ml"},
+               {"name": "butter", "amount": 2, "unit": "tbsp"},
+               {"name": "onion", "amount": 1, "unit": "whole"},
+               {"name": "garlic", "amount": 2, "unit": "cloves"},
+               {"name": "ginger", "amount": 1, "unit": "tsp"},
+               {"name": "garam masala", "amount": 1, "unit": "tsp"},
+               {"name": "red chili powder", "amount": 0.5, "unit": "tsp"},
+               {"name": "salt", "amount": 1, "unit": "tsp"}
+           ],
+           "instructions": [
+               "Sauté onions, garlic, and ginger in butter.",
+               "Add tomato puree and cook until thickened.",
+               "Stir in cream, spices, and paneer cubes.",
+               "Simmer for 10 minutes and serve hot with naan or rice."
+           ],
+           "prep_time": 15, "cook_time": 20, "servings": 1,
+           "difficulty": "Medium", "tags": ["indian", "vegetarian", "curry"],
+           "dietary_info": {"vegetarian": True, "vegan": False, "gluten_free": True, "dairy_free": False},
+           "nutrition": {"calories": 420, "protein": 18, "carbs": 15, "fat": 30},
+           "image_url": "Panner_Butter_Masala.jpg"
+       },
+       {
+           "name": "Chole (Chickpea Curry)",
+           "description": "Spicy North Indian chickpea curry.",
+           "ingredients": [
+               {"name": "chickpeas", "amount": 250, "unit": "g"},
+               {"name": "onion", "amount": 1, "unit": "whole"},
+               {"name": "tomato", "amount": 2, "unit": "whole"},
+               {"name": "garlic", "amount": 3, "unit": "cloves"},
+               {"name": "ginger", "amount": 1, "unit": "tsp"},
+               {"name": "chole masala", "amount": 1, "unit": "tbsp"},
+               {"name": "cumin seeds", "amount": 1, "unit": "tsp"},
+               {"name": "turmeric", "amount": 0.5, "unit": "tsp"},
+               {"name": "red chili powder", "amount": 0.5, "unit": "tsp"},
+               {"name": "salt", "amount": 1, "unit": "tsp"}
+           ],
+           "instructions": [
+               "Soak and boil chickpeas until soft.",
+               "Sauté cumin seeds, onions, garlic, and ginger.",
+               "Add tomatoes and spices, cook until oil separates.",
+               "Add chickpeas and simmer for 20 minutes.",
+               "Garnish with coriander and serve with rice or bhatura."
+           ],
+           "prep_time": 10, "cook_time": 30, "servings": 1,
+           "difficulty": "Medium", "tags": ["indian", "vegan", "curry"],
+           "dietary_info": {"vegetarian": True, "vegan": True, "gluten_free": True, "dairy_free": True},
+           "nutrition": {"calories": 350, "protein": 12, "carbs": 45, "fat": 10},
+           "image_url": "Chole.jpg"
+       },
+       {
+           "name": "Masoor Dal",
+           "description": "Simple red lentil dal cooked with Indian spices.",
+           "ingredients": [
+               {"name": "masoor dal", "amount": 200, "unit": "g"},
+               {"name": "onion", "amount": 1, "unit": "whole"},
+               {"name": "tomato", "amount": 1, "unit": "whole"},
+               {"name": "garlic", "amount": 2, "unit": "cloves"},
+               {"name": "turmeric", "amount": 0.5, "unit": "tsp"},
+               {"name": "mustard seeds", "amount": 0.5, "unit": "tsp"},
+               {"name": "curry leaves", "amount": 6, "unit": "leaves"},
+               {"name": "salt", "amount": 1, "unit": "tsp"}
+           ],
+           "instructions": [
+               "Boil dal with turmeric and salt until soft.",
+               "In a separate pan, temper mustard seeds, curry leaves, garlic, onion, and tomato.",
+               "Add the tempering to cooked dal and simmer for 5 minutes."
+           ],
+           "prep_time": 10, "cook_time": 20, "servings": 1,
+           "difficulty": "Easy", "tags": ["indian", "vegan", "dal"],
+           "dietary_info": {"vegetarian": True, "vegan": True, "gluten_free": True, "dairy_free": True},
+           "nutrition": {"calories": 220, "protein": 14, "carbs": 28, "fat": 5},
+           "image_url": "Masoor_Dal.jpg"
+       },
+       {
+           "name": "Aloo Gobi",
+           "description": "Potato and cauliflower stir fry with Indian spices.",
+           "ingredients": [
+               {"name": "potato", "amount": 2, "unit": "whole"},
+               {"name": "cauliflower", "amount": 1, "unit": "whole"},
+               {"name": "onion", "amount": 1, "unit": "whole"},
+               {"name": "garlic", "amount": 2, "unit": "cloves"},
+               {"name": "ginger", "amount": 1, "unit": "tsp"},
+               {"name": "turmeric", "amount": 0.5, "unit": "tsp"},
+               {"name": "cumin seeds", "amount": 1, "unit": "tsp"},
+               {"name": "red chili powder", "amount": 0.5, "unit": "tsp"},
+               {"name": "salt", "amount": 1, "unit": "tsp"}
+           ],
+           "instructions": [
+               "Heat oil and add cumin seeds.",
+               "Add onions, garlic, and ginger. Sauté until golden.",
+               "Add chopped potatoes and cauliflower with spices.",
+               "Cook covered until vegetables are soft."
+           ],
+           "prep_time": 10, "cook_time": 25, "servings": 1,
+           "difficulty": "Medium", "tags": ["indian", "vegan", "dry curry"],
+           "dietary_info": {"vegetarian": True, "vegan": True, "gluten_free": True, "dairy_free": True},
+           "nutrition": {"calories": 180, "protein": 5, "carbs": 25, "fat": 8},
+           "image_url": "Aloo_Gobi.jpg"
+       },
+       {
+           "name": "Bhindi Masala",
+           "description": "Okra stir fry with Indian spices.",
+           "ingredients": [
+               {"name": "okra", "amount": 250, "unit": "g"},
+               {"name": "onion", "amount": 1, "unit": "whole"},
+               {"name": "tomato", "amount": 1, "unit": "whole"},
+               {"name": "garlic", "amount": 2, "unit": "cloves"},
+               {"name": "turmeric", "amount": 0.5, "unit": "tsp"},
+               {"name": "coriander powder", "amount": 1, "unit": "tsp"},
+               {"name": "garam masala", "amount": 0.5, "unit": "tsp"},
+               {"name": "salt", "amount": 1, "unit": "tsp"}
+           ],
+           "instructions": [
+               "Sauté onions and garlic in oil.",
+               "Add chopped okra and cook uncovered.",
+               "Add tomatoes and spices, cook until okra is tender."
+           ],
+           "prep_time": 10, "cook_time": 20, "servings": 1,
+           "difficulty": "Easy", "tags": ["indian", "vegan"],
+           "dietary_info": {"vegetarian": True, "vegan": True, "gluten_free": True, "dairy_free": True},
+           "nutrition": {"calories": 150, "protein": 3, "carbs": 15, "fat": 8},
+           "image_url": "Bendi_Masala.jpg"
+       },
+       {
+           "name": "Palak Paneer",
+           "description": "Spinach curry with cubes of paneer.",
+           "ingredients": [
+               {"name": "spinach", "amount": 300, "unit": "g"},
+               {"name": "paneer", "amount": 200, "unit": "g"},
+               {"name": "onion", "amount": 1, "unit": "whole"},
+               {"name": "garlic", "amount": 3, "unit": "cloves"},
+               {"name": "ginger", "amount": 1, "unit": "tsp"},
+               {"name": "green chili", "amount": 1, "unit": "whole"},
+               {"name": "cream", "amount": 50, "unit": "ml"},
+               {"name": "salt", "amount": 1, "unit": "tsp"}
+           ],
+           "instructions": [
+               "Blanch spinach, blend into a puree.",
+               "Sauté onion, garlic, and ginger.",
+               "Add spinach puree and paneer, cook for 10 minutes.",
+               "Add cream and mix well."
+           ],
+           "prep_time": 15, "cook_time": 20, "servings": 1,
+           "difficulty": "Medium", "tags": ["indian", "vegetarian"],
+           "dietary_info": {"vegetarian": True, "vegan": False, "gluten_free": True, "dairy_free": False},
+           "nutrition": {"calories": 280, "protein": 14, "carbs": 12, "fat": 18},
+           "image_url": "Palak_Paneer.jpg"
+       },
+       {
+           "name": "Jeera Rice",
+           "description": "Fragrant basmati rice with cumin.",
+           "ingredients": [
+               {"name": "rice", "amount": 200, "unit": "g"},
+               {"name": "cumin seeds", "amount": 1, "unit": "tsp"},
+               {"name": "ghee", "amount": 1, "unit": "tbsp"},
+               {"name": "salt", "amount": 1, "unit": "tsp"}
+           ],
+           "instructions": [
+               "Soak rice for 30 minutes and drain.",
+               "Sauté cumin in ghee, add rice and water.",
+               "Cook until rice is fluffy."
+           ],
+           "prep_time": 5, "cook_time": 20, "servings": 1,
+           "difficulty": "Easy", "tags": ["indian", "rice"],
+           "dietary_info": {"vegetarian": True, "vegan": False, "gluten_free": True, "dairy_free": False},
+           "nutrition": {"calories": 210, "protein": 4, "carbs": 38, "fat": 6},
+           "image_url": "Jeera_Rice.jpg"
+       },
+       {
+           "name": "Veg Pulao",
+           "description": "Spiced rice with mixed vegetables.",
+           "ingredients": [
+               {"name": "rice", "amount": 200, "unit": "g"},
+               {"name": "carrot", "amount": 1, "unit": "whole"},
+               {"name": "peas", "amount": 100, "unit": "g"},
+               {"name": "beans", "amount": 100, "unit": "g"},
+               {"name": "cumin seeds", "amount": 1, "unit": "tsp"},
+               {"name": "bay leaf", "amount": 1, "unit": "whole"},
+               {"name": "cloves", "amount": 2, "unit": "whole"},
+               {"name": "cinnamon", "amount": 1, "unit": "inch"},
+               {"name": "salt", "amount": 1, "unit": "tsp"}
+           ],
+           "instructions": [
+               "Sauté whole spices and veggies in oil.",
+               "Add soaked rice and water, cook until done."
+           ],
+           "prep_time": 10, "cook_time": 20, "servings": 1,
+           "difficulty": "Easy", "tags": ["indian", "vegetarian", "rice"],
+           "dietary_info": {"vegetarian": True, "vegan": True, "gluten_free": True, "dairy_free": True},
+           "nutrition": {"calories": 250, "protein": 5, "carbs": 40, "fat": 7},
+           "image_url": "Veg_Palav.jpg"
+       }
+   ]
+
+   mongo_db.recipes.insert_many(recipes)
+
+def seed_ingredients():
+   global mongo_db
+   ingredients = [
+       {"name": "spaghetti", "category": "pasta", "unit": "g"},
+       {"name": "pancetta", "category": "meat", "unit": "g"},
+       {"name": "egg", "category": "dairy", "unit": "whole"},
+       {"name": "parmesan cheese", "category": "dairy", "unit": "g"},
+       {"name": "black pepper", "category": "spice", "unit": "tsp"},
+       {"name": "salt", "category": "spice", "unit": "tsp"},
+       {"name": "broccoli", "category": "vegetable", "unit": "whole"},
+       {"name": "carrot", "category": "vegetable", "unit": "whole"},
+       {"name": "bell pepper", "category": "vegetable", "unit": "whole"},
+       {"name": "onion", "category": "vegetable", "unit": "whole"},
+       {"name": "garlic", "category": "vegetable", "unit": "cloves"},
+       {"name": "soy sauce", "category": "condiment", "unit": "tbsp"},
+       {"name": "sesame oil", "category": "oil", "unit": "tbsp"},
+       {"name": "rice", "category": "grain", "unit": "cups"},
+       {"name": "bread", "category": "bakery", "unit": "slices"},
+       {"name": "avocado", "category": "fruit", "unit": "whole"},
+       {"name": "lemon juice", "category": "condiment", "unit": "tsp"},
+       {"name": "red pepper flakes", "category": "spice", "unit": "tsp"},
+       {"name": "kidney beans", "category": "canned goods", "unit": "g"},
+       {"name": "black beans", "category": "canned goods", "unit": "g"},
+       {"name": "diced tomatoes", "category": "canned goods", "unit": "g"},
+       {"name": "tomato paste", "category": "canned goods", "unit": "tbsp"},
+       {"name": "chili powder", "category": "spice", "unit": "tbsp"},
+       {"name": "cumin", "category": "spice", "unit": "tbsp"},
+       {"name": "paprika", "category": "spice", "unit": "tsp"},
+       {"name": "chicken breast", "category": "meat", "unit": "whole"},
+       {"name": "mixed greens", "category": "vegetable", "unit": "g"},
+       {"name": "cherry tomatoes", "category": "vegetable", "unit": "g"},
+       {"name": "cucumber", "category": "vegetable", "unit": "whole"},
+       {"name": "red onion", "category": "vegetable", "unit": "whole"},
+       {"name": "olive oil", "category": "oil", "unit": "tbsp"},
+       {"name": "mustard", "category": "condiment", "unit": "tsp"},
+       {"name": "honey", "category": "sweetener", "unit": "tsp"},
+       {"name": "paneer", "category": "dairy", "unit": "g"},
+       {"name": "tomato puree", "category": "canned", "unit": "ml"},
+       {"name": "cream", "category": "dairy", "unit": "ml"},
+       {"name": "butter", "category": "dairy", "unit": "tbsp"},
+       {"name": "onion", "category": "vegetable", "unit": "whole"},
+       {"name": "garlic", "category": "vegetable", "unit": "cloves"},
+       {"name": "ginger", "category": "vegetable", "unit": "tsp"},
+       {"name": "garam masala", "category": "spice", "unit": "tsp"},
+       {"name": "red chili powder", "category": "spice", "unit": "tsp"},
+       {"name": "salt", "category": "spice", "unit": "tsp"},
+       {"name": "chickpeas", "category": "legume", "unit": "g"},
+       {"name": "tomato", "category": "vegetable", "unit": "whole"},
+       {"name": "chole masala", "category": "spice", "unit": "tbsp"},
+       {"name": "cumin seeds", "category": "spice", "unit": "tsp"},
+       {"name": "turmeric", "category": "spice", "unit": "tsp"},
+       {"name": "masoor dal", "category": "legume", "unit": "g"},
+       {"name": "mustard seeds", "category": "spice", "unit": "tsp"},
+       {"name": "curry leaves", "category": "herb", "unit": "leaves"},
+       {"name": "potato", "category": "vegetable", "unit": "whole"},
+       {"name": "cauliflower", "category": "vegetable", "unit": "whole"},
+       {"name": "okra", "category": "vegetable", "unit": "g"},
+       {"name": "coriander powder", "category": "spice", "unit": "tsp"},
+       {"name": "spinach", "category": "vegetable", "unit": "g"},
+       {"name": "green chili", "category": "vegetable", "unit": "whole"},
+       {"name": "rice", "category": "grain", "unit": "g"},
+       {"name": "ghee", "category": "dairy", "unit": "tbsp"},
+       {"name": "carrot", "category": "vegetable", "unit": "whole"},
+       {"name": "peas", "category": "vegetable", "unit": "g"},
+       {"name": "beans", "category": "vegetable", "unit": "g"},
+       {"name": "bay leaf", "category": "spice", "unit": "whole"},
+       {"name": "cloves", "category": "spice", "unit": "whole"},
+       {"name": "cinnamon", "category": "spice", "unit": "inch"}
+   ]
+
+   mongo_db.ingredients.insert_many(ingredients)
