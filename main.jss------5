@@ -1,0 +1,49 @@
+.alert-dismissible {
+    position: relative;
+    padding-right: 3rem; /* Space for the close button */
+}
+
+/* Style for the custom close button */
+.alert-close-btn {
+    position: absolute;
+    top: 0.75rem; /* Adjust positioning as needed */
+    right: 1rem; /* Adjust positioning as needed */
+    padding: 0;
+    background: none;
+    border: none;
+    font-size: 1.5rem; /* Size of the 'x' */
+    line-height: 1;
+    color: inherit; /* Inherit color from the alert text */
+    cursor: pointer;
+    opacity: 0.5;
+    transition: opacity 0.15s ease-in-out;
+    -webkit-appearance: none; /* Remove default button styles for cross-browser consistency */
+}
+
+.alert-close-btn:hover {
+    opacity: 0.75;
+}
+
+/* Fade in/out animation for alerts */
+.flash-show {
+    opacity: 1;
+    transition: opacity 0.3s ease-out; /* Fade in */
+}
+
+.flash-fade-out {
+    opacity: 0;
+    transition: opacity 0.3s ease-in; /* Fade out */
+}
+
+/* Optional: Additional alert styles if you use 'info' or 'primary' categories */
+.alert-info {
+    background-color: rgba(166, 196, 181, 0.15); /* Using sage-green-light */
+    color: var(--sage-green-dark);
+    border: 1px solid rgba(166, 196, 181, 0.3);
+}
+
+.alert-primary {
+    background-color: rgba(125, 156, 140, 0.15); /* Using sage-green */
+    color: var(--sage-green);
+    border: 1px solid rgba(125, 156, 140, 0.3);
+}
