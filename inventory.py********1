@@ -1,0 +1,186 @@
+from database.mysql_setup import get_connection
+from datetime import datetime, timedelta
+
+class Inventory:
+    def __init__(self, item_id, user_id, ingredient_name, quantity, unit, expiry_date):
+        self.item_id = item_id
+        self.user_id = user_id
+        self.ingredient_name = ingredient_name
+        self.quantity = quantity
+        self.unit = unit
+        self.expiry_date = expiry_date
+
+    @staticmethod
+    def create(user_id, ingredient_name, quantity, unit, expiry_date=None):
+        conn = get_connection()
+        cursor = conn.cursor()
+        try:
+            query = """
+            INSERT INTO inventory (user_id, ingredient_name, quantity, unit, expiry_date)
+            VALUES (%s, %s, %s, %s, %s)
+            """
+            cursor.execute(query, (user_id, ingredient_name, quantity, unit, expiry_date))
+            conn.commit()
+            return cursor.lastrowid
+        except Exception as e:
+            print(f"Error creating inventory item: {e}")
+            conn.rollback()
+            return None
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_by_user_id(user_id):
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+        query = "SELECT * FROM inventory WHERE user_id = %s ORDER BY expiry_date ASC, ingredient_name ASC"
+        cursor.execute(query, (user_id,))
+        items = [Inventory(**item) for item in cursor.fetchall()]
+        cursor.close()
+        conn.close()
+        return items
+
+    @staticmethod
+    def get_aggregated_by_user_id(user_id):
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+        # Group by ingredient_name and sum quantities, ensuring to handle units correctly
+        # For simplicity, this assumes consistent units for the same ingredient.
+        # A more robust solution might require unit conversion.
+        query = """
+            SELECT ingredient_name, SUM(quantity) as total_quantity, unit
+            FROM inventory
+            WHERE user_id = %s
+            GROUP BY ingredient_name, unit
+        """
+        cursor.execute(query, (user_id,))
+        aggregated_items = {}
+        for row in cursor.fetchall():
+            # Store in a dictionary for easy lookup by ingredient name
+            # Normalize ingredient name for case-insensitive lookup
+            normalized_name = row['ingredient_name'].lower().strip()
+            aggregated_items[normalized_name] = {
+                'quantity': row['total_quantity'],
+                'unit': row['unit']
+            }
+        cursor.close()
+        conn.close()
+        return aggregated_items
+
+    @staticmethod
+    def update(item_id, quantity, unit, expiry_date):
+        conn = get_connection()
+        cursor = conn.cursor()
+        try:
+            query = """
+            UPDATE inventory SET quantity = %s, unit = %s, expiry_date = %s
+            WHERE item_id = %s
+            """
+            cursor.execute(query, (quantity, unit, expiry_date, item_id))
+            conn.commit()
+            return True
+        except Exception as e:
+            print(f"Error updating inventory item: {e}")
+            conn.rollback()
+            return False
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def delete(item_id):
+        conn = get_connection()
+        cursor = conn.cursor()
+        try:
+            query = "DELETE FROM inventory WHERE item_id = %s"
+            cursor.execute(query, (item_id,))
+            conn.commit()
+            return True
+        except Exception as e:
+            print(f"Error deleting inventory item: {e}")
+            conn.rollback()
+            return False
+        finally:
+            cursor.close()
+            conn.close()
+
+    @staticmethod
+    def get_expiring_soon(user_id, days=7):
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+        today = datetime.now().date()
+        expiry_threshold = today + timedelta(days=days)
+        query = """
+            SELECT * FROM inventory
+            WHERE user_id = %s AND expiry_date IS NOT NULL AND expiry_date <= %s
+            ORDER BY expiry_date ASC
+        """
+        cursor.execute(query, (user_id, expiry_threshold))
+        items = [Inventory(**item) for item in cursor.fetchall()]
+        cursor.close()
+        conn.close()
+        return items
+
+    @staticmethod
+    def get_low_stock_items(user_id, threshold=0):
+        # This method's logic depends on how 'low stock' is defined.
+        # For simplicity, returning items with quantity <= threshold.
+        # In a real app, you might have a per-ingredient minimum.
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+        query = """
+            SELECT * FROM inventory
+            WHERE user_id = %s AND quantity <= %s
+        """
+        cursor.execute(query, (user_id, threshold))
+        items = [Inventory(**item) for item in cursor.fetchall()]
+        cursor.close()
+        conn.close()
+        return items
+
+    @staticmethod
+    def deduct_ingredients(user_id, ingredients_to_deduct):
+        """
+        Deducts required ingredients from the inventory, prioritizing by expiry date.
+        ingredients_to_deduct is a dictionary: {'ingredient_name': {'amount': X, 'unit': Y}}
+        """
+        conn = get_connection()
+        cursor = conn.cursor()
+        try:
+            for req_ingredient_name, req_info in ingredients_to_deduct.items():
+                required_amount = req_info['amount']
+                # Fetch all entries for this ingredient, ordered by expiry date (oldest first)
+                query = """
+                    SELECT item_id, quantity FROM inventory
+                    WHERE user_id = %s AND ingredient_name = %s
+                    ORDER BY expiry_date ASC, item_id ASC
+                """
+                cursor.execute(query, (user_id, req_ingredient_name))
+                available_batches = cursor.fetchall()
+
+                for item_id, current_quantity in available_batches:
+                    if required_amount <= 0:
+                        break # All required amount has been deducted
+
+                    if current_quantity <= required_amount:
+                        # Use this entire batch and move to the next
+                        deduct_query = "DELETE FROM inventory WHERE item_id = %s"
+                        cursor.execute(deduct_query, (item_id,))
+                        required_amount -= current_quantity
+                    else:
+                        # Use only a portion of this batch
+                        new_quantity = current_quantity - required_amount
+                        update_query = "UPDATE inventory SET quantity = %s WHERE item_id = %s"
+                        cursor.execute(update_query, (new_quantity, item_id,))
+                        required_amount = 0 # All required amount satisfied
+
+            conn.commit()
+            return True
+        except Exception as e:
+            print(f"Error deducting ingredients: {e}")
+            conn.rollback()
+            return False
+        finally:
+            cursor.close()
+            conn.close()
