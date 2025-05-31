@@ -37,13 +37,11 @@
         {# Flash messages section #}
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
-                <div class="flash-messages-container"> {# Added a wrapper div for potential styling #}
+                <div class="flash-messages-container mb-4">
                     {% for category, message in messages %}
-                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        <div class="alert alert-{{ category }} alert-dismissible flash-show" role="alert">
                             {{ message }}
-                            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                                <span aria-hidden="true">&times;</span>
-                            </button>
+                            <button type="button" class="alert-close-btn" aria-label="Close">&times;</button>
                         </div>
                     {% endfor %}
                 </div>
@@ -62,9 +60,24 @@
     </footer>
     
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-    {# Ensure jQuery and Bootstrap JS are loaded for dismissible alerts if not already in main.js #}
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
+    {# Custom script for closing alerts #}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const closeButtons = document.querySelectorAll('.alert-close-btn');
+            closeButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const alert = this.closest('.alert-dismissible');
+                    if (alert) {
+                        alert.classList.remove('flash-show');
+                        alert.classList.add('flash-fade-out');
+                        alert.addEventListener('transitionend', function() {
+                            alert.remove();
+                        });
+                    }
+                });
+            });
+        });
+    </script>
     {% block scripts %}{% endblock %}
 </body>
 </html>
