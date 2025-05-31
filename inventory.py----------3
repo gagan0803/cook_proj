@@ -1,0 +1,392 @@
+from database.mysql_setup import get_connection
+from datetime import datetime, timedelta
+from config import Config
+from database.mongo_setup import mongo_db
+import pymongo
+
+class Inventory:
+   def __init__(self, id, user_id, ingredient_name, category, quantity, unit, expiry_date=None, added_date=None, ingredient_id=None):
+       self.id = id
+       self.user_id = user_id
+       self.ingredient_name = ingredient_name
+       self.category = category
+       self.quantity = quantity
+       self.unit = unit
+       self.expiry_date = expiry_date
+       self.added_date = added_date
+       self.ingredient_id = ingredient_id
+   
+   @staticmethod
+   def get_by_user_id(user_id):
+       conn = get_connection()
+       cursor = conn.cursor(dictionary=True)
+       
+       cursor.execute(
+           "SELECT * FROM inventory WHERE user_id = %s ORDER BY ingredient_name",
+           (user_id,)
+       )
+       
+       inventory_items = []
+       for item in cursor.fetchall():
+           inventory_items.append(Inventory(
+               id=item['id'],
+               user_id=item['user_id'],
+               ingredient_name=item['ingredient_name'],
+               category=item['category'],
+               quantity=item['quantity'],
+               unit=item['unit'],
+               expiry_date=item['expiry_date'],
+               added_date=item['added_date'],
+               ingredient_id=item.get('ingredient_id')
+           ))
+       
+       cursor.close()
+       return inventory_items
+   
+   @staticmethod
+   def get_by_id(item_id):
+       conn = get_connection()
+       cursor = conn.cursor(dictionary=True)
+       
+       cursor.execute("SELECT * FROM inventory WHERE id = %s", (item_id,))
+       item = cursor.fetchone()
+       cursor.close()
+       
+       if not item:
+           return None
+       
+       return Inventory(
+           id=item['id'],
+           user_id=item['user_id'],
+           ingredient_name=item['ingredient_name'],
+           category=item['category'],
+           quantity=item['quantity'],
+           unit=item['unit'],
+           expiry_date=item['expiry_date'],
+           added_date=item['added_date'],
+           ingredient_id=item.get('ingredient_id')
+       )
+   
+   @staticmethod
+   def get_by_user_and_ingredient(user_id, ingredient_name):
+       """Check if an ingredient already exists in user's inventory"""
+       conn = get_connection()
+       cursor = conn.cursor(dictionary=True)
+       
+       cursor.execute(
+           "SELECT * FROM inventory WHERE user_id = %s AND ingredient_name = %s",
+           (user_id, ingredient_name.lower())
+       )
+       
+       item = cursor.fetchone()
+       cursor.close()
+       
+       if not item:
+           return None
+       
+       return Inventory(
+           id=item['id'],
+           user_id=item['user_id'],
+           ingredient_name=item['ingredient_name'],
+           category=item['category'],
+           quantity=item['quantity'],
+           unit=item['unit'],
+           expiry_date=item['expiry_date'],
+           added_date=item['added_date'],
+           ingredient_id=item.get('ingredient_id')
+       )
+   
+   @staticmethod
+   def get_ingredient_id(ingredient_name):
+       """Get MongoDB ObjectID for an ingredient by name"""
+       # Search for the ingredient in the recipes collection
+       ingredient_name = ingredient_name.lower()
+       results = mongo_db.recipes.aggregate([
+           {"$unwind": "$ingredients"},
+           {"$match": {"ingredients.name": ingredient_name}},
+           {"$limit": 1}
+       ])
+       
+       results_list = list(results)
+       if results_list:
+           # Return the MongoDB ObjectID as a string
+           return str(results_list[0]['_id'])
+       
+       return None
+   
+   @staticmethod
+   def get_ingredient_unit(ingredient_name):
+       """Get standard unit for an ingredient by name"""
+       ingredient_name = ingredient_name.lower()
+       results = mongo_db.recipes.aggregate([
+           {"$unwind": "$ingredients"},
+           {"$match": {"ingredients.name": ingredient_name}},
+           {"$limit": 1}
+       ])
+       
+       results_list = list(results)
+       if results_list:
+           # Return the unit
+           return results_list[0]['ingredients']['unit']
+       
+       return None
+   
+   @staticmethod
+   def get_ingredient_category(ingredient_name):
+       """Get category for an ingredient by name"""
+       ingredient_name = ingredient_name.lower()
+       
+       # Define category mappings (you may need to adjust these based on your data)
+       category_mappings = {
+           'fruit': ['apple', 'banana', 'orange', 'strawberry', 'blueberry', 'grape'],
+           'vegetable': ['carrot', 'onion', 'tomato', 'potato', 'broccoli', 'spinach'],
+           'meat': ['chicken', 'beef', 'pork', 'lamb', 'turkey'],
+           'dairy': ['milk', 'cheese', 'yogurt', 'butter', 'cream','egg'],
+           'grain': ['rice', 'pasta', 'flour', 'oats'],
+           'spice': ['salt', 'pepper', 'cinnamon', 'cumin', 'paprika'],
+           'condiment': ['ketchup', 'mustard', 'mayonnaise', 'soy sauce'],
+           'bakery': ['cake', 'cookie', 'bread', 'pastry'],
+           'canned goods': ['canned beans', 'canned soup', 'canned tuna'],
+           'frozen': ['ice cream', 'frozen pizza', 'frozen vegetables'],
+           'beverage': ['water', 'soda', 'juice', 'coffee'],
+           'snack': ['chips', 'crackers', 'popcorn'],
+           'oil': ['sesame oil'],
+       }
+       
+       # Try to find category in MongoDB first
+       results = mongo_db.recipes.aggregate([
+           {"$unwind": "$ingredients"},
+           {"$match": {"ingredients.name": ingredient_name}},
+           {"$limit": 1}
+       ])
+       
+       results_list = list(results)
+       if results_list and 'category' in results_list[0]['ingredients']:
+           return results_list[0]['ingredients']['category']
+       
+       # Fall back to category mappings
+       for category, ingredients in category_mappings.items():
+           if any(ingredient_name.find(ing) >= 0 for ing in ingredients):
+               return category
+       
+       # Default category
+       return 'other'
+   
+   @staticmethod
+   def add_item(user_id, ingredient_name, category, quantity, unit, expiry_date=None):
+       # First check if the ingredient exists in MongoDB
+       ingredient_id = Inventory.get_ingredient_id(ingredient_name)
+       
+       if not ingredient_id:
+           return None  # Ingredient not found in MongoDB
+       
+       # Check if the ingredient already exists in user's inventory
+       existing_item = Inventory.get_by_user_and_ingredient(user_id, ingredient_name)
+       if existing_item:
+           return "exists"  # Return special value to indicate ingredient already exists
+       
+       conn = get_connection()
+       cursor = conn.cursor()
+       
+       try:
+           # Check if table has ingredient_id column
+           cursor.execute("SHOW COLUMNS FROM inventory LIKE 'ingredient_id'")
+           has_ingredient_id = cursor.fetchone() is not None
+           
+           if has_ingredient_id:
+               cursor.execute(
+                   """
+                   INSERT INTO inventory 
+                   (user_id, ingredient_name, category, quantity, unit, expiry_date, ingredient_id) 
+                   VALUES (%s, %s, %s, %s, %s, %s, %s)
+                   """,
+                   (user_id, ingredient_name, category, quantity, unit, expiry_date, ingredient_id)
+               )
+           else:
+               cursor.execute(
+                   """
+                   INSERT INTO inventory 
+                   (user_id, ingredient_name, category, quantity, unit, expiry_date) 
+                   VALUES (%s, %s, %s, %s, %s, %s)
+                   """,
+                   (user_id, ingredient_name, category, quantity, unit, expiry_date)
+               )   
+           conn.commit()
+           item_id = cursor.lastrowid
+           cursor.close()
+           
+           return Inventory.get_by_id(item_id)
+       except Exception as e:
+           conn.rollback()
+           cursor.close()
+           print(f"Error adding inventory item: {e}")
+           return None
+   
+   @staticmethod
+   def update_item(item_id, ingredient_name, category, quantity, unit, expiry_date=None):
+       # First check if the ingredient exists in MongoDB
+       ingredient_id = Inventory.get_ingredient_id(ingredient_name)
+       
+       if not ingredient_id:
+           return None  # Ingredient not found in MongoDB
+           
+       conn = get_connection()
+       cursor = conn.cursor()
+       
+       try:
+           # Check if table has ingredient_id column
+           cursor.execute("SHOW COLUMNS FROM inventory LIKE 'ingredient_id'")
+           has_ingredient_id = cursor.fetchone() is not None
+           
+           if has_ingredient_id:
+               cursor.execute(
+                   """
+                   UPDATE inventory 
+                   SET ingredient_name = %s, category = %s, quantity = %s, unit = %s, expiry_date = %s, ingredient_id = %s
+                   WHERE id = %s
+                   """,
+                   (ingredient_name, category, quantity, unit, expiry_date, ingredient_id, item_id)
+               )
+           else:
+               cursor.execute(
+                   """
+                   UPDATE inventory 
+                   SET ingredient_name = %s, category = %s, quantity = %s, unit = %s, expiry_date = %s
+                   WHERE id = %s
+                   """,
+                   (ingredient_name, category, quantity, unit, expiry_date, item_id)
+               )
+               
+           conn.commit()
+           cursor.close()
+           
+           return Inventory.get_by_id(item_id)
+       except Exception as e:
+           conn.rollback()
+           cursor.close()
+           print(f"Error updating inventory item: {e}")
+           return None
+   
+   @staticmethod
+   def delete_item(item_id):
+       conn = get_connection()
+       cursor = conn.cursor()
+       
+       try:
+           cursor.execute("DELETE FROM inventory WHERE id = %s", (item_id,))
+           conn.commit()
+           cursor.close()
+           return True
+       except Exception as e:
+           conn.rollback()
+           cursor.close()
+           print(f"Error deleting inventory item: {e}")
+           return False
+   
+   @staticmethod
+   def get_expiring_items(user_id):
+       conn = get_connection()
+       cursor = conn.cursor(dictionary=True)
+       
+       warning_date = datetime.now().date() + timedelta(days=Config.EXPIRATION_WARNING_DAYS)
+       
+       cursor.execute(
+           """
+           SELECT * FROM inventory 
+           WHERE user_id = %s AND expiry_date IS NOT NULL AND expiry_date <= %s
+           ORDER BY expiry_date
+           """,
+           (user_id, warning_date)
+       )
+       
+       expiring_items = []
+       for item in cursor.fetchall():
+           expiring_items.append(Inventory(
+               id=item['id'],
+               user_id=item['user_id'],
+               ingredient_name=item['ingredient_name'],
+               category=item['category'],
+               quantity=item['quantity'],
+               unit=item['unit'],
+               expiry_date=item['expiry_date'],
+               added_date=item['added_date'],
+               ingredient_id=item.get('ingredient_id')
+           ))
+       
+       cursor.close()
+       return expiring_items
+   
+   @staticmethod
+   def update_quantity(user_id, ingredient_name, quantity_change):
+       conn = get_connection()
+       cursor = conn.cursor()
+       
+       try:
+           # First check if the ingredient exists for this user
+           cursor.execute(
+               "SELECT id, quantity, unit FROM inventory WHERE user_id = %s AND ingredient_name = %s",
+               (user_id, ingredient_name)
+           )
+           
+           item = cursor.fetchone()
+           
+           if item:
+               item_id, current_quantity, unit = item
+               new_quantity = current_quantity + quantity_change
+               
+               # If new quantity is 0 or less, delete the item
+               if new_quantity <= 0:
+                   cursor.execute("DELETE FROM inventory WHERE id = %s", (item_id,))
+               else:
+                   cursor.execute(
+                       "UPDATE inventory SET quantity = %s WHERE id = %s",
+                       (new_quantity, item_id)
+                   )
+               
+               conn.commit()
+               cursor.close()
+               return True
+           else:
+               cursor.close()
+               return False
+       except Exception as e:
+           conn.rollback()
+           cursor.close()
+           print(f"Error updating inventory quantity: {e}")
+           return False
+
+   @staticmethod
+   def convert_units(from_value, from_unit, to_unit):
+       """
+       Convert between compatible units
+       This is a basic implementation - for a production app, this would be more comprehensive
+       """
+       # Basic conversions for demonstration
+       mass_conversions = {
+           'g': 1,
+           'kg': 1000,
+           'oz': 28.35,
+           'lb': 453.59
+       }
+       
+       volume_conversions = {
+           'ml': 1,
+           'l': 1000,
+           'cups': 240,
+           'tbsp': 15,
+           'tsp': 5,
+       }
+       
+       # Check if both units are in the same conversion group
+       if from_unit in mass_conversions and to_unit in mass_conversions:
+           # Convert to base unit (g) and then to target unit
+           base_value = from_value * mass_conversions[from_unit]
+           return base_value / mass_conversions[to_unit]
+       
+       elif from_unit in volume_conversions and to_unit in volume_conversions:
+           # Convert to base unit (ml) and then to target unit
+           base_value = from_value * volume_conversions[from_unit]
+           return base_value / volume_conversions[to_unit]
+       
+       # If units are not compatible or not in our conversion tables, return None
+       return None
