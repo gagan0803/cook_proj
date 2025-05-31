@@ -1,0 +1,56 @@
+def init_mongo(app: Flask):
+    """
+    Initializes the MongoDB connection and seeds data if collections are empty.
+    This function should be called during your Flask app's initialization.
+    """
+    global mongo_client, mongo_db
+    
+    # Ensure MONGO_URI is set in your Flask app config
+    if 'MONGO_URI' not in app.config:
+        raise RuntimeError("MONGO_URI is not set in Flask app config.")
+    
+    mongo_client = MongoClient(app.config['MONGO_URI'])
+    
+    # If a database name is specified in MONGO_URI, get_database() will use that.
+    # Otherwise, you might need to explicitly provide a default DB_NAME.
+    # For now, let's assume MONGO_URI includes the database name or you define a default.
+    # If your MONGO_URI is "mongodb://localhost:27017/mydb", get_database() will return 'mydb'.
+    # If it's "mongodb://localhost:27017/", you'd need a default name, e.g., app.config.get('MONGO_DB_NAME', 'cookbookit')
+    
+    # Let's use a default database name if MONGO_URI doesn't specify one or
+    # if you want to override it. A common approach is to put DB_NAME in config.
+    db_name = app.config.get('MONGO_DB_NAME', 'cookbookit') # Assuming 'cookbookit' as default
+    mongo_db = mongo_client[db_name]
+
+    # Register the MongoDB instance with Flask app extensions for easy access later
+    app.extensions['mongo_db'] = mongo_db
+    
+    # Seed recipes and ingredients if the collections are empty
+    # Check count only if the connection is successful and db is accessible
+    if mongo_db.recipes.count_documents({}) == 0:
+        seed_recipes()
+    
+    if mongo_db.ingredients.count_documents({}) == 0:
+        seed_ingredients()
+    
+    return mongo_db
+
+def get_mongo_collection(collection_name):
+    """
+    Returns a specific MongoDB collection.
+    This function is used by your models to interact with specific collections.
+    """
+    global mongo_db
+    if mongo_db is None:
+        raise RuntimeError("MongoDB not initialized. Call init_mongo(app) first.")
+    return mongo_db[collection_name]
+
+
+def close_mongo_connection():
+    global mongo_client
+    if mongo_client:
+        mongo_client.close()
+        mongo_client = None
+        global mongo_db
+        mongo_db = None
+    print("MongoDB connection closed.")
