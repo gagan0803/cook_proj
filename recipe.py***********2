@@ -1,6 +1,6 @@
 from database.mongo_setup import get_mongo_collection
-from database.mysql_setup import get_connection # Needed for user preferences if not passed
-from bson.objectid import ObjectId # Import ObjectId for _id
+from database.mysql_setup import get_connection
+from bson.objectid import ObjectId
 
 class Recipe:
     def __init__(self, _id, name, description, ingredients, instructions, prep_time, cook_time, servings, difficulty, image_url, tags, nutrition, dietary_info):
@@ -22,7 +22,6 @@ class Recipe:
     def get_all():
         collection = get_mongo_collection('recipes')
         recipes_data = list(collection.find({}))
-        # Convert _id to string for JSON serialization or easier handling in templates
         for recipe in recipes_data:
             recipe['_id'] = str(recipe['_id'])
         return recipes_data
@@ -38,7 +37,6 @@ class Recipe:
     @staticmethod
     def search_by_name(search_term):
         collection = get_mongo_collection('recipes')
-        # Case-insensitive search using regex
         recipes_data = list(collection.find({"name": {"$regex": search_term, "$options": "i"}}))
         for recipe in recipes_data:
             recipe['_id'] = str(recipe['_id'])
@@ -47,17 +45,12 @@ class Recipe:
     @staticmethod
     def search_by_ingredients(ingredient_names):
         collection = get_mongo_collection('recipes')
-        # Create a case-insensitive list of ingredient names
         ingredient_names_lower = [name.lower().strip() for name in ingredient_names]
 
-        # Find recipes where any ingredient in the recipe matches an ingredient in the user's inventory
-        # Using $in and $regex to ensure partial matches for ingredient names
-        # Note: This is a broad search. For exact matches, you'd need more specific logic.
         recipes = list(collection.find({
             "ingredients.name": {"$in": [f"(?i){name}" for name in ingredient_names_lower]}
         }))
 
-        # Calculate match percentage and filter out recipes with 0% match
         matched_recipes = []
         for recipe in recipes:
             recipe_ingredient_names = [ing['name'].lower().strip() for ing in recipe.get('ingredients', [])]
@@ -65,7 +58,7 @@ class Recipe:
             
             if total_recipe_ingredients == 0:
                 recipe['match_percentage'] = 0
-                continue # Skip recipes with no ingredients defined
+                continue
 
             matched_count = 0
             for ing_name in recipe_ingredient_names:
@@ -75,22 +68,16 @@ class Recipe:
             match_percentage = (matched_count / total_recipe_ingredients) * 100 if total_recipe_ingredients > 0 else 0
             recipe['match_percentage'] = round(match_percentage, 2)
             
-            # Convert _id to string
             recipe['_id'] = str(recipe['_id'])
             
-            if recipe['match_percentage'] > 0: # Only include recipes that have at least one matching ingredient
+            if recipe['match_percentage'] > 0:
                 matched_recipes.append(recipe)
         
-        # Sort by match percentage (descending)
         matched_recipes.sort(key=lambda x: x.get('match_percentage', 0), reverse=True)
         return matched_recipes
 
     @staticmethod
     def filter_by_dietary(recipes, dietary_filters):
-        """
-        Filters a list of recipes based on active dietary preferences.
-        dietary_filters is a dict like {'vegetarian': True, 'gluten_free': True}
-        """
         if not dietary_filters:
             return recipes
 
@@ -106,9 +93,10 @@ class Recipe:
         return filtered
 
     @staticmethod
-    def check_ingredients_for_servings(user_inventory, recipe_ingredients, servings_to_make):
+    def check_ingredients_for_servings(recipe, user_inventory, recipe_ingredients, servings_to_make):
         """
         Checks if the user has enough ingredients for a given number of servings.
+        recipe: The full recipe object (dictionary) to access its base servings.
         user_inventory: A dictionary where keys are normalized ingredient names (lowercase, stripped)
                         and values are dictionaries like {'quantity': X, 'unit': Y}
                         This should be the aggregated view from Inventory.get_aggregated_by_user_id.
@@ -117,23 +105,23 @@ class Recipe:
         """
         has_all_ingredients = True
         missing_ingredients = []
-        low_stock_ingredients = [] # Ingredients that will be low after making the recipe
+        low_stock_ingredients = []
 
-        # Create a temporary copy of inventory to simulate deductions
         temp_inventory = {k: v.copy() for k, v in user_inventory.items()}
+
+        recipe_base_servings = recipe.get('servings', 1) # Get the base servings from the passed recipe object
 
         for recipe_ing in recipe_ingredients:
             recipe_ing_name = recipe_ing['name'].lower().strip()
-            # Calculate required amount for the desired servings
-            required_amount_for_servings = recipe_ing['amount'] * (servings_to_make / recipe.get('servings', 1)) # Assuming recipe has base servings
+            # Calculate required amount for the desired servings using recipe_base_servings
+            required_amount_for_servings = recipe_ing['amount'] * (servings_to_make / recipe_base_servings)
 
             if recipe_ing_name in temp_inventory:
                 available_quantity = temp_inventory[recipe_ing_name]['quantity']
+                
                 # Basic unit compatibility check - a more robust system would need unit conversion
                 if temp_inventory[recipe_ing_name]['unit'] != recipe_ing['unit']:
-                    print(f"Warning: Unit mismatch for {recipe_ing_name}. Recipe needs {recipe_ing['unit']}, user has {temp_inventory[recipe_ing_name]['unit']}. Assuming compatibility for check.")
-                    # For a real application, implement unit conversion (e.g., grams to kilograms, ml to liters)
-                    # For now, we'll proceed assuming the unit is broadly compatible or handled by user.
+                    # print(f"Warning: Unit mismatch for {recipe_ing_name}. Recipe needs {recipe_ing['unit']}, user has {temp_inventory[recipe_ing_name]['unit']}. Assuming compatibility for check.")
                     pass
 
                 if available_quantity < required_amount_for_servings:
@@ -145,12 +133,11 @@ class Recipe:
                         'current_available': available_quantity
                     })
                 
-                # Simulate deduction to check for low stock
                 temp_inventory[recipe_ing_name]['quantity'] -= required_amount_for_servings
-                if temp_inventory[recipe_ing_name]['quantity'] <= 0.5 and has_all_ingredients: # Define low stock threshold, e.g., 0.5 unit remaining
+                if temp_inventory[recipe_ing_name]['quantity'] <= 0.5 and has_all_ingredients:
                     low_stock_ingredients.append({
                         'name': recipe_ing['name'],
-                        'remaining': max(0, temp_inventory[recipe_ing_name]['quantity']), # Don't show negative remaining
+                        'remaining': max(0, temp_inventory[recipe_ing_name]['quantity']),
                         'unit': recipe_ing['unit']
                     })
 
