@@ -77,7 +77,7 @@ def seed_recipes():
                {"name": "garlic", "amount": 2, "unit": "cloves"},
                {"name": "soy sauce", "amount": 2, "unit": "tbsp"},
                {"name": "sesame oil", "amount": 1, "unit": "tbsp"},
-               {"name": "rice", "amount": 2, "unit": "cups"}
+               {"name": "rice", "amount": 300, "unit": "g"}
            ],
            "instructions": [
                "Chop all vegetables into bite-sized pieces.",
