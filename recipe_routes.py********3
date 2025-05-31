@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
 from flask_login import login_required, current_user
 from models.recipe import Recipe
-from models.inventory import Inventory # Ensure this is imported
+from models.inventory import Inventory
 from models.completed_recipe import CompletedRecipe
 from database.mysql_setup import get_connection
 
@@ -10,22 +10,18 @@ recipe_bp = Blueprint('recipe', __name__, url_prefix='/recipe')
 @recipe_bp.route('/')
 @login_required
 def index():
-    # Get user's inventory ingredients (aggregated view)
     user_inventory_aggregated = Inventory.get_aggregated_by_user_id(current_user.id)
-    inventory_item_names = list(user_inventory_aggregated.keys()) # Get names from the aggregated dictionary
+    inventory_item_names = list(user_inventory_aggregated.keys())
 
-    # Get recipes that can be made with these ingredients
-    recipes = Recipe.search_by_ingredients(inventory_item_names) # Pass normalized names
+    recipes = Recipe.search_by_ingredients(inventory_item_names)
 
-    # Get user's dietary preferences
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
     cursor.execute("SELECT * FROM user_preferences WHERE user_id = %s", (current_user.id,))
     preferences = cursor.fetchone()
     cursor.close()
-    conn.close() # Close connection after use
+    conn.close()
 
-    # Apply dietary filters if user has preferences
     if preferences:
         dietary_filters = {
             'vegetarian': preferences['is_vegetarian'],
@@ -33,19 +29,17 @@ def index():
             'gluten_free': preferences['is_gluten_free'],
             'dairy_free': preferences['is_dairy_free']
         }
-        # Only apply filters that are true
         active_filters = {k: v for k, v in dietary_filters.items() if v}
 
         if active_filters:
             recipes = Recipe.filter_by_dietary(recipes, active_filters)
 
-    # Get recently completed recipes
     completed_recipes = CompletedRecipe.get_by_user(current_user.id, limit=5)
 
     return render_template('recipe/index.html',
                            recipes=recipes,
                            completed_recipes=completed_recipes,
-                           inventory_count=len(user_inventory_aggregated)) # Use length of aggregated items
+                           inventory_count=len(user_inventory_aggregated))
 
 
 @recipe_bp.route('/search', methods=['GET', 'POST'])
@@ -58,21 +52,18 @@ def search():
     else:
         recipes = Recipe.get_all()
 
-    # Get user's dietary preferences
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
     cursor.execute("SELECT * FROM user_preferences WHERE user_id = %s", (current_user.id,))
     preferences = cursor.fetchone()
     cursor.close()
-    conn.close() # Close connection after use
+    conn.close()
 
-    # Apply filters from form
     vegetarian = request.args.get('vegetarian') == 'on'
     vegan = request.args.get('vegan') == 'on'
     gluten_free = request.args.get('gluten_free') == 'on'
     dairy_free = request.args.get('dairy_free') == 'on'
 
-    # Create dietary filters dict
     dietary_filters = {}
     if vegetarian:
         dietary_filters['vegetarian'] = True
@@ -83,7 +74,6 @@ def search():
     if dairy_free:
         dietary_filters['dairy_free'] = True
 
-    # Apply dietary filters if any are selected
     if dietary_filters:
         recipes = Recipe.filter_by_dietary(recipes, dietary_filters)
 
@@ -101,21 +91,19 @@ def detail(recipe_id):
         flash('Recipe not found.', 'danger')
         return redirect(url_for('recipe.index'))
 
-    # Get user's aggregated inventory items for checking
     user_inventory = Inventory.get_aggregated_by_user_id(current_user.id)
 
-    # Default servings to 1 for initial display
     default_servings = 1
 
-    # Check ingredients for the default number of servings
+    # Pass the recipe object itself to the check_ingredients_for_servings method
     has_all_ingredients, missing_ingredients, low_stock_ingredients = \
-        Recipe.check_ingredients_for_servings(user_inventory, recipe.get('ingredients', []), default_servings)
+        Recipe.check_ingredients_for_servings(recipe, user_inventory, recipe.get('ingredients', []), default_servings)
 
     return render_template('recipe/detail.html',
                            recipe=recipe,
                            has_all_ingredients=has_all_ingredients,
                            missing_ingredients=missing_ingredients,
-                           low_stock_ingredients=low_stock_ingredients, # Pass low stock info
+                           low_stock_ingredients=low_stock_ingredients,
                            default_servings=default_servings)
 
 @recipe_bp.route('/<recipe_id>/complete', methods=['POST'])
@@ -135,44 +123,39 @@ def complete(recipe_id):
         flash('Invalid number of servings.', 'danger')
         return redirect(url_for('recipe.detail', recipe_id=recipe_id))
 
-    # Get user's aggregated inventory items
     user_inventory_aggregated = Inventory.get_aggregated_by_user_id(current_user.id)
 
-    # Check if user has enough ingredients for the requested servings
+    # Pass the recipe object itself to the check_ingredients_for_servings method
     has_all_ingredients, missing_ingredients_for_servings, low_stock_ingredients = \
-        Recipe.check_ingredients_for_servings(user_inventory_aggregated, recipe.get('ingredients', []), servings)
+        Recipe.check_ingredients_for_servings(recipe, user_inventory_aggregated, recipe.get('ingredients', []), servings)
 
     if not has_all_ingredients:
-        # Flash a detailed message about missing ingredients
         missing_message = f"Cannot complete recipe: You are missing some ingredients for {servings} servings. "
         for item in missing_ingredients_for_servings:
-            # Show how much is needed vs. how much is available
             missing_message += f"Need {item['required']:.2f} {item['unit']} of {item['name']}, have {item['current_available']:.2f} {item['unit']}. "
         flash(missing_message, 'danger')
         return redirect(url_for('recipe.detail', recipe_id=recipe_id))
 
-    # Prepare ingredients for deduction by Inventory.deduct_ingredients
     ingredients_to_deduct = {}
+    # Use recipe.get('servings', 1) to get the original servings for the recipe.
+    recipe_base_servings = recipe.get('servings', 1)
     for recipe_ing in recipe.get('ingredients', []):
-        required_amount = recipe_ing['amount'] * (servings / recipe.get('servings', 1))
-        ingredients_to_deduct[recipe_ing['name'].strip()] = { # Use original name for deduction lookup
+        required_amount = recipe_ing['amount'] * (servings / recipe_base_servings)
+        ingredients_to_deduct[recipe_ing['name'].strip()] = {
             'amount': required_amount,
-            'unit': recipe_ing['unit'] # Keep original unit, deduction logic should handle it
+            'unit': recipe_ing['unit']
         }
 
-    # Deduct ingredients from inventory
     deduction_successful = Inventory.deduct_ingredients(current_user.id, ingredients_to_deduct)
 
     if not deduction_successful:
         flash('Error updating inventory after recipe completion.', 'danger')
         return redirect(url_for('recipe.detail', recipe_id=recipe_id))
 
-    # Mark recipe as completed
     completed_id = CompletedRecipe.mark_completed(current_user.id, recipe_id, servings)
 
     if completed_id:
         flash('Recipe marked as completed and inventory updated!', 'success')
-        # Inform about low stock ingredients after successful completion
         if low_stock_ingredients:
             low_stock_names_and_amounts = [f"{ing['name']} (~{ing['remaining']:.2f} {ing['unit']})" for ing in low_stock_ingredients]
             flash(f"Heads up! The following ingredients are now low in stock: {', '.join(low_stock_names_and_amounts)}", 'info')
@@ -190,14 +173,11 @@ def completed():
 @recipe_bp.route('/api/can-make', methods=['GET'])
 @login_required
 def api_can_make():
-    # Get user's inventory ingredients (aggregated view)
     user_inventory_aggregated = Inventory.get_aggregated_by_user_id(current_user.id)
     ingredient_names = list(user_inventory_aggregated.keys())
 
-    # Get recipes that can be made with these ingredients
     recipes = Recipe.search_by_ingredients(ingredient_names)
 
-    # Format for JSON response
     recipes_list = []
     for recipe in recipes:
         recipes_list.append({
