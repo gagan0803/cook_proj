@@ -11,211 +11,203 @@ inventory_bp = Blueprint('inventory', __name__, url_prefix='/inventory')
 
 # Categories for the form dropdown
 CATEGORIES = [
-   ('vegetable', 'Vegetable'),
-   ('fruit', 'Fruit'),
-   ('meat', 'Meat'),
-   ('dairy', 'Dairy'),
-   ('grain', 'Grain'),
-   ('spice', 'Spice'),
-   ('condiment', 'Condiment'),
-   ('bakery', 'Bakery'),
-   ('canned goods', 'Canned Goods'),
-   ('frozen', 'Frozen'),
-   ('beverage', 'Beverage'),
-   ('snack', 'Snack'),
-   ('oil','Oil'),
-   ('other', 'Other')
+    ('vegetable', 'Vegetable'),
+    ('fruit', 'Fruit'),
+    ('meat', 'Meat'),
+    ('dairy', 'Dairy'),
+    ('grain', 'Grain'),
+    ('spice', 'Spice'),
+    ('condiment', 'Condiment'),
+    ('bakery', 'Bakery'),
+    ('canned goods', 'Canned Goods'),
+    ('frozen', 'Frozen'),
+    ('beverage', 'Beverage'),
+    ('snack', 'Snack'),
+    ('oil','Oil'),
+    ('other', 'Other')
 ]
 
 # Units for the form dropdown
 UNITS = [
-   ('g', 'Grams (g)'),
-   ('kg', 'Kilograms (kg)'),
-   ('ml', 'Milliliters (ml)'),
-   ('l', 'Liters (l)'),
-   ('cups', 'Cups'),
-   ('tbsp', 'Tablespoons'),
-   ('tsp', 'Teaspoons'),
-   ('whole', 'Whole'),
-   ('slices', 'Slices'),
-   ('pieces', 'Pieces'),
-   ('pinch', 'Pinch'),
-   ('oz', 'Ounces (oz)'),
-   ('lb', 'Pounds (lb)'),
-   ('cloves', 'Cloves')
+    ('g', 'Grams (g)'),
+    ('kg', 'Kilograms (kg)'),
+    ('ml', 'Milliliters (ml)'),
+    ('l', 'Liters (l)'),
+    ('cups', 'Cups'),
+    ('tbsp', 'Tablespoons'),
+    ('tsp', 'Teaspoons'),
+    ('whole', 'Whole'),
+    ('slices', 'Slices'),
+    ('pieces', 'Pieces'),
+    ('pinch', 'Pinch'),
+    ('oz', 'Ounces (oz)'),
+    ('lb', 'Pounds (lb)'),
+    ('cloves', 'Cloves')
 ]
 
 class InventoryForm(FlaskForm):
-   ingredient_name = StringField('Ingredient Name', validators=[DataRequired()])
-   category = SelectField('Category', choices=CATEGORIES, validators=[DataRequired()])
-   quantity = FloatField('Quantity', validators=[DataRequired()])
-   unit = SelectField('Unit', choices=UNITS, validators=[DataRequired()])
-   expiry_date = DateField('Expiry Date (Optional)', format='%Y-%m-%d', validators=[Optional()])
-   submit = SubmitField('Save')
+    ingredient_name = StringField('Ingredient Name', validators=[DataRequired()])
+    category = SelectField('Category', choices=CATEGORIES, validators=[DataRequired()])
+    quantity = FloatField('Quantity', validators=[DataRequired()])
+    unit = SelectField('Unit', choices=UNITS, validators=[DataRequired()])
+    expiry_date = DateField('Expiry Date (Optional)', format='%Y-%m-%d', validators=[Optional()])
+    submit = SubmitField('Save')
 
 @inventory_bp.route('/')
 @login_required
 def index():
-   inventory_items = Inventory.get_by_user_id(current_user.id)
-   expiring_items = Inventory.get_expiring_items(current_user.id)
-   return render_template('inventory/index.html', 
-                         inventory_items=inventory_items, 
-                         expiring_items=expiring_items,
-                         categories=CATEGORIES,
-                         datetime=datetime)
+    inventory_items = Inventory.get_by_user_id(current_user.id)
+    expiring_items = Inventory.get_expiring_items(current_user.id)
+    return render_template('inventory/index.html', 
+                           inventory_items=inventory_items, 
+                           expiring_items=expiring_items,
+                           categories=CATEGORIES,
+                           datetime=datetime)
 
 @inventory_bp.route('/add', methods=['GET', 'POST'])
 @login_required
 def add():
-   form = InventoryForm()
-   
-   if form.validate_on_submit():
-       ingredient_name = form.ingredient_name.data.lower()
-       
-       # Validate that ingredient exists in MongoDB
-       ingredient_id = Inventory.get_ingredient_id(ingredient_name)
-       if not ingredient_id:
-           flash('This ingredient is not in our database. Please check the spelling or try another ingredient.', 'danger')
-           return render_template('inventory/add.html', form=form, title="Add Ingredient")
-       
-       item = Inventory.add_item(
-           user_id=current_user.id,
-           ingredient_name=ingredient_name,
-           category=form.category.data,
-           quantity=form.quantity.data,
-           unit=form.unit.data,
-           expiry_date=form.expiry_date.data
-       )
-       
-       if item == "exists":
-           flash(f'"{ingredient_name.title()}" is already in your inventory. You can edit the existing item to update the quantity.', 'warning')
-           return render_template('inventory/add.html', form=form, title="Add Ingredient")
-       elif item:
-           flash('Ingredient added to inventory!', 'success')
-           return redirect(url_for('inventory.index'))
-       else:
-           flash('Error adding ingredient. Please try again.', 'danger')
-   
-   return render_template('inventory/add.html', form=form, title="Add Ingredient")
+    form = InventoryForm()
+    
+    if form.validate_on_submit():
+        ingredient_name = form.ingredient_name.data.lower()
+        
+        # Validate that ingredient exists in MongoDB (already present logic)
+        ingredient_id = Inventory.get_ingredient_id(ingredient_name)
+        if not ingredient_id:
+            flash('This ingredient is not in our database. Please check the spelling or try another ingredient.', 'danger')
+            return render_template('inventory/add.html', form=form, title="Add Ingredient")
+        
+        item = Inventory.add_item(
+            user_id=current_user.id,
+            ingredient_name=ingredient_name,
+            category=form.category.data,
+            quantity=form.quantity.data,
+            unit=form.unit.data,
+            expiry_date=form.expiry_date.data
+        )
+        
+        if item == "duplicate":
+            flash(f'"{ingredient_name.capitalize()}" is already in your inventory. Please edit the existing item to update its quantity or other details.', 'info')
+            return redirect(url_for('inventory.index')) # Redirect to index to show existing item
+        elif item:
+            flash('Ingredient added to inventory!', 'success')
+            return redirect(url_for('inventory.index'))
+        else:
+            flash('Error adding ingredient. Please try again.', 'danger')
+    
+    return render_template('inventory/add.html', form=form, title="Add Ingredient")
 
 @inventory_bp.route('/edit/<int:item_id>', methods=['GET', 'POST'])
 @login_required
 def edit(item_id):
-   item = Inventory.get_by_id(item_id)
-   
-   if not item or item.user_id != current_user.id:
-       flash('Item not found or you do not have permission to edit it.', 'danger')
-       return redirect(url_for('inventory.index'))
-   
-   form = InventoryForm()
-   
-   if form.validate_on_submit():
-       ingredient_name = form.ingredient_name.data.lower()
-       
-       # Validate that ingredient exists in MongoDB
-       ingredient_id = Inventory.get_ingredient_id(ingredient_name)
-       if not ingredient_id:
-           flash('This ingredient is not in our database. Please check the spelling or try another ingredient.', 'danger')
-           return render_template('inventory/edit.html', form=form, item=item, title="Edit Ingredient")
-       
-       # Check if user is trying to change to an ingredient that already exists in their inventory
-       # but only if the ingredient name is different from the current one
-       if ingredient_name != item.ingredient_name:
-           existing_item = Inventory.get_by_user_and_ingredient(current_user.id, ingredient_name)
-           if existing_item:
-               flash(f'"{ingredient_name.title()}" is already in your inventory. Please choose a different ingredient or edit the existing one.', 'warning')
-               return render_template('inventory/edit.html', form=form, item=item, title="Edit Ingredient")
-           
-       updated_item = Inventory.update_item(
-           item_id=item_id,
-           ingredient_name=ingredient_name,
-           category=form.category.data,
-           quantity=form.quantity.data,
-           unit=form.unit.data,
-           expiry_date=form.expiry_date.data
-       )
-       
-       if updated_item:
-           flash('Ingredient updated successfully!', 'success')
-           return redirect(url_for('inventory.index'))
-       else:
-           flash('Error updating ingredient. Please try again.', 'danger')
-   
-   # Pre-fill form
-   if request.method == 'GET':
-       form.ingredient_name.data = item.ingredient_name
-       form.category.data = item.category
-       form.quantity.data = item.quantity
-       form.unit.data = item.unit
-       form.expiry_date.data = item.expiry_date
-   
-   return render_template('inventory/edit.html', form=form, item=item, title="Edit Ingredient")
+    item = Inventory.get_by_id(item_id)
+    
+    if not item or item.user_id != current_user.id:
+        flash('Item not found or you do not have permission to edit it.', 'danger')
+        return redirect(url_for('inventory.index'))
+    
+    form = InventoryForm()
+    
+    if form.validate_on_submit():
+        ingredient_name = form.ingredient_name.data.lower()
+        
+        # Validate that ingredient exists in MongoDB
+        ingredient_id = Inventory.get_ingredient_id(ingredient_name)
+        if not ingredient_id:
+            flash('This ingredient is not in our database. Please check the spelling or try another ingredient.', 'danger')
+            return render_template('inventory/edit.html', form=form, item=item, title="Edit Ingredient")
+            
+        updated_item = Inventory.update_item(
+            item_id=item_id,
+            ingredient_name=ingredient_name,
+            category=form.category.data,
+            quantity=form.quantity.data,
+            unit=form.unit.data,
+            expiry_date=form.expiry_date.data
+        )
+        
+        if updated_item:
+            flash('Ingredient updated successfully!', 'success')
+            return redirect(url_for('inventory.index'))
+        else:
+            flash('Error updating ingredient. Please try again.', 'danger')
+    
+    # Pre-fill form
+    if request.method == 'GET':
+        form.ingredient_name.data = item.ingredient_name
+        form.category.data = item.category
+        form.quantity.data = item.quantity
+        form.unit.data = item.unit
+        form.expiry_date.data = item.expiry_date
+    
+    return render_template('inventory/edit.html', form=form, item=item, title="Edit Ingredient")
 
 @inventory_bp.route('/delete/<int:item_id>', methods=['POST'])
 @login_required
 def delete(item_id):
-   item = Inventory.get_by_id(item_id)
-   
-   if not item or item.user_id != current_user.id:
-       flash('Item not found or you do not have permission to delete it.', 'danger')
-       return redirect(url_for('inventory.index'))
-   
-   if Inventory.delete_item(item_id):
-       flash('Ingredient removed from inventory!', 'success')
-   else:
-       flash('Error removing ingredient. Please try again.', 'danger')
-   
-   return redirect(url_for('inventory.index'))
+    item = Inventory.get_by_id(item_id)
+    
+    if not item or item.user_id != current_user.id:
+        flash('Item not found or you do not have permission to delete it.', 'danger')
+        return redirect(url_for('inventory.index'))
+    
+    if Inventory.delete_item(item_id):
+        flash('Ingredient removed from inventory!', 'success')
+    else:
+        flash('Error removing ingredient. Please try again.', 'danger')
+    
+    return redirect(url_for('inventory.index'))
 
 @inventory_bp.route('/api/items', methods=['GET'])
 @login_required
 def api_get_items():
-   inventory_items = Inventory.get_by_user_id(current_user.id)
-   items_list = []
-   
-   for item in inventory_items:
-       items_list.append({
-           'id': item.id,
-           'ingredient_name': item.ingredient_name,
-           'category': item.category,
-           'quantity': item.quantity,
-           'unit': item.unit,
-           'expiry_date': item.expiry_date.isoformat() if item.expiry_date else None
-       })
-   
-   return jsonify({'items': items_list})
+    inventory_items = Inventory.get_by_user_id(current_user.id)
+    items_list = []
+    
+    for item in inventory_items:
+        items_list.append({
+            'id': item.id,
+            'ingredient_name': item.ingredient_name,
+            'category': item.category,
+            'quantity': item.quantity,
+            'unit': item.unit,
+            'expiry_date': item.expiry_date.isoformat() if item.expiry_date else None
+        })
+    
+    return jsonify({'items': items_list})
 
 @inventory_bp.route('/api/ingredients', methods=['GET'])
 @login_required
 def api_get_ingredients():
-   search_term = request.args.get('term', '').lower()
-   
-   # Get ingredients from MongoDB
-   # Create a list of unique ingredients
-   unique_ingredients = []
-   
-   # Get ingredients from recipes collection
-   pipeline = [
-       {"$unwind": "$ingredients"},
-       {"$group": {
-           "_id": "$ingredients.name",
-           "unit": {"$first": "$ingredients.unit"}
-       }},
-       {"$sort": {"_id": 1}}
-   ]
-   
-   if search_term:
-       pipeline.insert(1, {"$match": {"ingredients.name": {"$regex": f"^{search_term}"}}})
-   
-   ingredients = mongo_db.recipes.aggregate(pipeline)
-   
-   for ingredient in ingredients:
-       ingredient_name = ingredient['_id']
-       category = Inventory.get_ingredient_category(ingredient_name)
-       unique_ingredients.append({
-           'name': ingredient_name,
-           'unit': ingredient['unit'],
-           'category': category
-       })
-   
-   return jsonify({'ingredients': unique_ingredients})
+    search_term = request.args.get('term', '').lower()
+    
+    # Get ingredients from MongoDB
+    # Create a list of unique ingredients
+    unique_ingredients = []
+    
+    # Get ingredients from recipes collection
+    pipeline = [
+        {"$unwind": "$ingredients"},
+        {"$group": {
+            "_id": "$ingredients.name",
+            "unit": {"$first": "$ingredients.unit"}
+        }},
+        {"$sort": {"_id": 1}}
+    ]
+    
+    if search_term:
+        pipeline.insert(1, {"$match": {"ingredients.name": {"$regex": f"^{search_term}"}}})
+    
+    ingredients = mongo_db.recipes.aggregate(pipeline)
+    
+    for ingredient in ingredients:
+        ingredient_name = ingredient['_id']
+        category = Inventory.get_ingredient_category(ingredient_name)
+        unique_ingredients.append({
+            'name': ingredient_name,
+            'unit': ingredient['unit'],
+            'category': category
+        })
+    
+    return jsonify({'ingredients': unique_ingredients})
