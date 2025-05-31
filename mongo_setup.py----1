@@ -155,7 +155,7 @@ def seed_recipes():
                {"name": "diced tomatoes", "amount": 800, "unit": "g"},
                {"name": "tomato paste", "amount": 2, "unit": "tbsp"},
                {"name": "chili powder", "amount": 2, "unit": "tbsp"},
-               {"name": "cumin", "amount": 1, "unit": "tbsp"},
+               {"name": "cumin seeds", "amount": 1, "unit": "tsp"},
                {"name": "paprika", "amount": 1, "unit": "tsp"}
            ],
            "instructions": [
@@ -456,7 +456,6 @@ def seed_ingredients():
        {"name": "diced tomatoes", "category": "canned goods", "unit": "g"},
        {"name": "tomato paste", "category": "canned goods", "unit": "tbsp"},
        {"name": "chili powder", "category": "spice", "unit": "tbsp"},
-       {"name": "cumin", "category": "spice", "unit": "tbsp"},
        {"name": "paprika", "category": "spice", "unit": "tsp"},
        {"name": "chicken breast", "category": "meat", "unit": "whole"},
        {"name": "mixed greens", "category": "vegetable", "unit": "g"},
