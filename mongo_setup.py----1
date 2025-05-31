@@ -384,7 +384,7 @@ def seed_recipes():
        },
        {
            "name": "Jeera Rice",
-           "description": "Fragrant basmati rice with cumin.",
+           "description": "Fragrant rice with cumin.",
            "ingredients": [
                {"name": "rice", "amount": 200, "unit": "g"},
                {"name": "cumin seeds", "amount": 1, "unit": "tsp"},
