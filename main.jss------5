@@ -1,49 +1,386 @@
-.alert-dismissible {
-    position: relative;
-    padding-right: 3rem; /* Space for the close button */
-}
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle expiration warnings
+    const expirationWarnings = document.querySelectorAll('.expiration-warning');
+    if (expirationWarnings.length > 0) {
+        setTimeout(() => {
+            expirationWarnings.forEach(warning => {
+                warning.classList.add('fade-in');
+            });
+        }, 300);
+    }
 
-/* Style for the custom close button */
-.alert-close-btn {
-    position: absolute;
-    top: 0.75rem; /* Adjust positioning as needed */
-    right: 1rem; /* Adjust positioning as needed */
-    padding: 0;
-    background: none;
-    border: none;
-    font-size: 1.5rem; /* Size of the 'x' */
-    line-height: 1;
-    color: inherit; /* Inherit color from the alert text */
-    cursor: pointer;
-    opacity: 0.5;
-    transition: opacity 0.15s ease-in-out;
-    -webkit-appearance: none; /* Remove default button styles for cross-browser consistency */
-}
+    // Auto-dismiss and manual close for flash messages
+    const flashMessages = document.querySelectorAll('.alert.auto-dismiss');
+    
+    flashMessages.forEach(alert => {
+        // Auto-dismiss after 5 seconds (adjust as needed)
+        setTimeout(() => {
+            dismissAlert(alert);
+        }, 5000); // 5000 milliseconds = 5 seconds
 
-.alert-close-btn:hover {
-    opacity: 0.75;
-}
+        // Add event listener for manual close button
+        const closeButton = alert.querySelector('.alert-close-btn');
+        if (closeButton) {
+            closeButton.addEventListener('click', function() {
+                dismissAlert(alert);
+            });
+        }
+    });
 
-/* Fade in/out animation for alerts */
-.flash-show {
-    opacity: 1;
-    transition: opacity 0.3s ease-out; /* Fade in */
-}
+    // Helper function to dismiss an alert with fade-out
+    function dismissAlert(alertElement) {
+        if (alertElement) {
+            alertElement.classList.remove('flash-show');
+            alertElement.classList.add('flash-fade-out');
+            // Remove the element from the DOM after the transition ends
+            alertElement.addEventListener('transitionend', function() {
+                alertElement.remove();
+            }, { once: true }); // Use { once: true } to ensure listener runs only once
+        }
+    }
+    
+    // Recipe match percentage visual indicators
+    const matchBars = document.querySelectorAll('.match-bar');
+    matchBars.forEach(bar => {
+        const percentage = parseFloat(bar.getAttribute('data-percentage'));
+        const progressBar = bar.querySelector('.match-progress');
+        
+        setTimeout(() => {
+            progressBar.style.width = `${percentage}%`;
+            
+            // Set color based on match percentage
+            if (percentage >= 80) {
+                progressBar.style.backgroundColor = 'var(--success)';
+            } else if (percentage >= 50) {
+                progressBar.style.backgroundColor = 'var(--sage-green)';
+            } else if (percentage >= 30) {
+                progressBar.style.backgroundColor = 'var(--warning)';
+            } else {
+                progressBar.style.backgroundColor = 'var(--terracotta)';
+            }
+        }, 100);
+    });
+    
+    // Add ingredient form quantity validations
+    const quantityInput = document.getElementById('quantity');
+    if (quantityInput) {
+        quantityInput.addEventListener('input', function() {
+            if (parseFloat(this.value) <= 0) {
+                this.setCustomValidity('Quantity must be greater than 0');
+            } else {
+                this.setCustomValidity('');
+            }
+        });
+    }
+    
+    // Recipe search filters toggle
+    const filterToggle = document.getElementById('filter-toggle');
+    const filterForm = document.getElementById('filter-form');
+    
+    if (filterToggle && filterForm) {
+        filterToggle.addEventListener('click', function() {
+            if (filterForm.classList.contains('d-none')) {
+                filterForm.classList.remove('d-none');
+                filterForm.classList.add('slide-in-up');
+                filterToggle.textContent = 'Hide Filters';
+            } else {
+                filterForm.classList.add('d-none');
+                filterForm.classList.remove('slide-in-up');
+                filterToggle.textContent = 'Show Filters';
+            }
+        });
+    
+        // Update button text based on initial state
+        if (!filterForm.classList.contains('d-none')) {
+            filterToggle.textContent = 'Hide Filters';
+        }
+    }
+    
+    // Recipe detail - Complete recipe modal
+    const completeRecipeBtn = document.getElementById('complete-recipe-btn');
+    const completeModal = document.getElementById('complete-modal');
+    const closeModalBtn = document.getElementById('close-modal');
+    
+    if (completeRecipeBtn && completeModal) {
+        completeRecipeBtn.addEventListener('click', function() {
+            completeModal.style.display = 'flex';
+            setTimeout(() => {
+                completeModal.classList.add('modal-open');
+            }, 10);
+        });
+        
+        if (closeModalBtn) {
+            closeModalBtn.addEventListener('click', function() {
+                completeModal.classList.remove('modal-open');
+                setTimeout(() => {
+                    completeModal.style.display = 'none';
+                }, 300);
+            });
+        }
+        
+        window.addEventListener('click', function(event) {
+            if (event.target === completeModal) {
+                completeModal.classList.remove('modal-open');
+                setTimeout(() => {
+                    completeModal.style.display = 'none';
+                }, 300);
+            }
+        });
+    }
+    
+    // Meal Plan - Add recipe modal
+    const addRecipeButtons = document.querySelectorAll('.add-recipe-btn');
+    const mealPlanModal = document.getElementById('meal-plan-modal');
+    const closeMealPlanModalBtn = document.getElementById('close-meal-plan-modal');
+    
+    if (addRecipeButtons.length > 0 && mealPlanModal) {
+        addRecipeButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const day = this.getAttribute('data-day');
+                const mealType = this.getAttribute('data-meal-type');
+                
+                document.getElementById('day_of_week').value = day;
+                document.getElementById('meal_type').value = mealType;
+                
+                mealPlanModal.style.display = 'flex';
+                setTimeout(() => {
+                    mealPlanModal.classList.add('modal-open');
+                }, 10);
+            });
+        });
+        
+        if (closeMealPlanModalBtn) {
+            closeMealPlanModalBtn.addEventListener('click', function() {
+                mealPlanModal.classList.remove('modal-open');
+                setTimeout(() => {
+                    mealPlanModal.style.display = 'none';
+                }, 300);
+            });
+        }
+        
+        window.addEventListener('click', function(event) {
+            if (event.target === mealPlanModal) {
+                mealPlanModal.classList.remove('modal-open');
+                setTimeout(() => {
+                    mealPlanModal.style.display = 'none';
+                }, 300);
+            }
+        });
+        
+        // Remove "no meal planned" when adding a recipe (fix for issue #9)
+        const recipeForm = document.querySelector('form[action*="add_recipe"]');
+        if (recipeForm) {
+            recipeForm.addEventListener('submit', function() {
+                const day = document.getElementById('day_of_week').value;
+                const mealType = document.getElementById('meal_type').value;
+                
+                // Find the cell that corresponds to this day and meal type
+                const cell = document.querySelector(`.meal-plan-cell[data-day="${day}"]`);
+                if (cell) {
+                    const placeholder = cell.querySelector('.meal-plan-empty');
+                    if (placeholder) {
+                        placeholder.style.display = 'none';
+                    }
+                }
+            });
+        }
+    }
+    
+    // Category filters for inventory
+    const categoryFilters = document.querySelectorAll('.category-filter');
+    const inventoryItems = document.querySelectorAll('.inventory-item');
+    
+    if (categoryFilters.length > 0 && inventoryItems.length > 0) {
+        categoryFilters.forEach(filter => {
+            filter.addEventListener('click', function() {
+                const category = this.getAttribute('data-category');
+                
+                // Toggle active state
+                categoryFilters.forEach(f => f.classList.remove('active'));
+                this.classList.add('active');
+                
+                // Filter items
+                if (category === 'all') {
+                    inventoryItems.forEach(item => {
+                        item.style.display = 'block';
+                    });
+                } else {
+                    inventoryItems.forEach(item => {
+                        if (item.getAttribute('data-category') === category) {
+                            item.style.display = 'block';
+                        } else {
+                            item.style.display = 'none';
+                        }
+                    });
+                }
+            });
+        });
+    }
+    
+    // Mobile navigation toggle
+    const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+    const mobileMenu = document.getElementById('mobile-menu');
+    
+    if (mobileMenuToggle && mobileMenu) {
+        mobileMenuToggle.addEventListener('click', function() {
+            mobileMenu.classList.toggle('show');
+            mobileMenuToggle.classList.toggle('open');
+        });
+    }
 
-.flash-fade-out {
-    opacity: 0;
-    transition: opacity 0.3s ease-in; /* Fade out */
-}
+    // Ingredient autocomplete - Initialize if on inventory add/edit page
+    const ingredientInput = document.getElementById('ingredient-name-input');
+    const suggestionsContainer = document.getElementById('ingredient-suggestions');
+    const unitSelect = document.getElementById('unit-select');
+    
+    if (ingredientInput && suggestionsContainer && unitSelect) {
+        // Store the ingredient data
+        let ingredientData = [];
+        
+        // Fetch ingredients
+        async function fetchIngredients(searchTerm) {
+            try {
+                const response = await fetch(`/inventory/api/ingredients?term=${searchTerm}`);
+                const data = await response.json();
+                return data.ingredients;
+            } catch (error) {
+                console.error('Error fetching ingredients:', error);
+                return [];
+            }
+        }
+        
+        // Debounce function to prevent too many API calls
+        function debounce(func, wait) {
+            let timeout;
+            return function(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), wait);
+            };
+        }
+        
+        // Handle input changes
+        const handleInputChange = debounce(async function() {
+            const searchTerm = ingredientInput.value.trim().toLowerCase();
+            
+            if (searchTerm.length < 2) {
+                suggestionsContainer.innerHTML = '';
+                suggestionsContainer.style.display = 'none';
+                return;
+            }
+            
+            // Fetch ingredients that match the search term
+            ingredientData = await fetchIngredients(searchTerm);
+            
+            // Display suggestions
+            if (ingredientData.length > 0) {
+                suggestionsContainer.innerHTML = '';
+                
+                ingredientData.forEach(ingredient => {
+                    const div = document.createElement('div');
+                    div.className = 'suggestion-item';
+                    div.textContent = ingredient.name;
+                    div.addEventListener('click', () => selectIngredient(ingredient));
+                    suggestionsContainer.appendChild(div);
+                });
+                
+                suggestionsContainer.style.display = 'block';
+            } else {
+                suggestionsContainer.innerHTML = '';
+                suggestionsContainer.style.display = 'none';
+            }
+        }, 300);
+        
+        // Select an ingredient from suggestions
+        function selectIngredient(ingredient) {
+            ingredientInput.value = ingredient.name;
+            
+            // Set the unit if available
+            if (ingredient.unit) {
+                // Find the option with this unit value
+                for (let i = 0; i < unitSelect.options.length; i++) {
+                    if (unitSelect.options[i].value === ingredient.unit) {
+                        unitSelect.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
+            
+            // Hide suggestions
+            suggestionsContainer.innerHTML = '';
+            suggestionsContainer.style.display = 'none';
+        }
+        
+        // Add event listeners
+        ingredientInput.addEventListener('input', handleInputChange);
+        
+        // Close suggestions when clicking outside
+        document.addEventListener('click', function(event) {
+            if (event.target !== ingredientInput && event.target !== suggestionsContainer) {
+                suggestionsContainer.style.display = 'none';
+            }
+        });
+    }
+});
 
-/* Optional: Additional alert styles if you use 'info' or 'primary' categories */
-.alert-info {
-    background-color: rgba(166, 196, 181, 0.15); /* Using sage-green-light */
-    color: var(--sage-green-dark);
-    border: 1px solid rgba(166, 196, 181, 0.3);
-}
-
-.alert-primary {
-    background-color: rgba(125, 156, 140, 0.15); /* Using sage-green */
-    color: var(--sage-green);
-    border: 1px solid rgba(125, 156, 140, 0.3);
+// Function to update recipe search results dynamically (outside DOMContentLoaded as it's a global helper)
+function updateRecipeResults(recipes) {
+    const resultsContainer = document.getElementById('recipe-results');
+    
+    if (!resultsContainer || !recipes) return;
+    
+    let html = '';
+    
+    if (recipes.length === 0) {
+        html = '<p class="text-center">No recipes found matching your criteria.</p>';
+    } else {
+        recipes.forEach(recipe => {
+            html += `
+                <div class="recipe-card card">
+                    <img src="/static/images/recipes/${recipe.image_url}" onerror="this.src='/static/images/placeholder.jpg'" alt="${recipe.name}" class="card-img">
+                    <div class="card-body">
+                        <h3 class="card-title">${recipe.name}</h3>
+                        <p class="card-text">${recipe.description}</p>
+                        <div class="recipe-meta">
+                            <span>${recipe.prep_time + recipe.cook_time} mins</span>
+                            <span>${recipe.difficulty}</span>
+                        </div>
+                        <div class="match-indicator">
+                            <div class="match-bar" data-percentage="${recipe.match_percentage || 0}">
+                                <div class="match-progress" style="width: 0%"></div>
+                            </div>
+                            <span class="match-text">${Math.round(recipe.match_percentage || 0)}%</span>
+                        </div>
+                        <div class="recipe-tags">
+                            ${recipe.tags.map(tag => `<span class="recipe-tag">${tag}</span>`).join('')}
+                        </div>
+                        <a href="/recipe/${recipe._id}" class="btn btn-primary mt-2">View Recipe</a>
+                    </div>
+                </div>
+            `;
+        });
+    }
+    
+    resultsContainer.innerHTML = html;
+    
+    // Initialize match bars after updating content
+    const matchBars = document.querySelectorAll('.match-bar');
+    matchBars.forEach(bar => {
+        const percentage = parseFloat(bar.getAttribute('data-percentage'));
+        const progressBar = bar.querySelector('.match-progress');
+        
+        setTimeout(() => {
+            progressBar.style.width = `${percentage}%`;
+            
+            // Set color based on match percentage
+            if (percentage >= 80) {
+                progressBar.style.backgroundColor = 'var(--success)';
+            } else if (percentage >= 50) {
+                progressBar.style.backgroundColor = 'var(--sage-green)';
+            } else if (percentage >= 30) {
+                progressBar.style.backgroundColor = 'var(--warning)';
+            } else {
+                progressBar.style.backgroundColor = 'var(--terracotta)';
+            }
+        }, 100);
+    });
 }
